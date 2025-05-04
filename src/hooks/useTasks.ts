@@ -1,14 +1,26 @@
 
 import { useState, useEffect } from 'react';
-import { Task, TaskState } from '../types/task';
+import { Task, TaskState, UserSettings, GoogleFormConfig } from '../types/task';
 import { 
   loadFromLocalStorage, 
   saveToLocalStorage, 
   addTask as addTaskToStorage,
   clearTasksForToday,
-  getCurrentTimeBlock
+  getCurrentTimeBlock,
+  saveUserSettings,
+  loadUserSettings
 } from '../utils/storage';
 import { toast } from 'sonner';
+
+// Default field IDs for Google Forms (based on common patterns)
+const DEFAULT_FORM_FIELDS = {
+  name: "entry.2005620554",       // Name field
+  date: "entry.1310344807",       // Date field
+  client: "entry.1065046570",     // Client field
+  time: "entry.1166974658",       // Time/duration field
+  description: "entry.839337160", // Description field
+  githubIssue: "entry.1042224615" // GitHub issue field
+};
 
 export const useTasks = () => {
   const [taskState, setTaskState] = useState<TaskState>({ tasks: [], dailyHistory: [] });
@@ -17,8 +29,14 @@ export const useTasks = () => {
   const [lastPromptedTimeBlock, setLastPromptedTimeBlock] = useState<number | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [userName, setUserName] = useState('');
+  const [userSettings, setUserSettings] = useState<UserSettings>({
+    formConfig: {
+      url: '',
+      fields: DEFAULT_FORM_FIELDS
+    }
+  });
 
-  // Load tasks on initial render
+  // Load tasks and user settings on initial render
   useEffect(() => {
     const loadTasks = () => {
       const data = loadFromLocalStorage();
@@ -28,6 +46,12 @@ export const useTasks = () => {
       const savedUserName = localStorage.getItem('daily-cheer-user-name');
       if (savedUserName) {
         setUserName(savedUserName);
+      }
+      
+      // Load user settings
+      const settings = loadUserSettings();
+      if (settings) {
+        setUserSettings(settings);
       }
       
       setLoading(false);
@@ -94,6 +118,19 @@ export const useTasks = () => {
     saveToLocalStorage(updatedState);
   };
 
+  // Save user settings
+  const saveSettings = (settings: UserSettings) => {
+    setUserSettings(settings);
+    saveUserSettings(settings);
+    
+    // Update taskState with user settings
+    const updatedState = { ...taskState, userSettings: settings };
+    setTaskState(updatedState);
+    saveToLocalStorage(updatedState);
+    
+    return updatedState;
+  };
+
   // Clear tasks and store them in history
   const finalizeDayTasks = () => {
     const updatedState = clearTasksForToday();
@@ -119,9 +156,11 @@ export const useTasks = () => {
     showPrompt,
     loading,
     userName,
+    userSettings,
     addTask,
     finalizeDayTasks,
     dismissPrompt,
-    setUser
+    setUser,
+    saveSettings
   };
 };

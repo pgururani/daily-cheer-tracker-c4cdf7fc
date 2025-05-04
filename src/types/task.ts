@@ -19,6 +19,7 @@ export interface TaskState {
   tasks: Task[];
   dailyHistory: DailyTasks[];
   userName?: string;
+  userSettings?: UserSettings;
 }
 
 // Google Form field configuration
@@ -32,4 +33,11 @@ export interface GoogleFormConfig {
     description: string;
     githubIssue: string;
   };
+}
+
+// User preferences and settings
+export interface UserSettings {
+  formConfig: GoogleFormConfig;
+  defaultClient?: string;
+  defaultTimeSpent?: string;
 }

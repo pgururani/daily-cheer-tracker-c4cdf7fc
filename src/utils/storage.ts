@@ -1,7 +1,8 @@
 
-import { Task, DailyTasks, TaskState } from "../types/task";
+import { Task, DailyTasks, TaskState, UserSettings } from "../types/task";
 
 const STORAGE_KEY = 'daily-cheer-tracker-data';
+const USER_SETTINGS_KEY = 'daily-cheer-user-settings';
 
 export const saveToLocalStorage = (data: TaskState): void => {
   try {
@@ -24,6 +25,27 @@ export const loadFromLocalStorage = (): TaskState => {
   }
 };
 
+export const saveUserSettings = (settings: UserSettings): void => {
+  try {
+    localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.error('Error saving user settings to localStorage:', error);
+  }
+};
+
+export const loadUserSettings = (): UserSettings | null => {
+  try {
+    const settings = localStorage.getItem(USER_SETTINGS_KEY);
+    if (settings) {
+      return JSON.parse(settings);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error loading user settings from localStorage:', error);
+    return null;
+  }
+};
+
 export const clearTasksForToday = (): TaskState => {
   const currentData = loadFromLocalStorage();
   const today = new Date().toISOString().split('T')[0];
@@ -38,7 +60,8 @@ export const clearTasksForToday = (): TaskState => {
     // Create a new entry for today
     currentData.dailyHistory.push({
       date: today,
-      tasks: [...currentData.tasks]
+      tasks: [...currentData.tasks],
+      userName: currentData.userName
     });
   }
   

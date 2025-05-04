@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { DailyTasks, Task, GoogleFormConfig } from '@/types/task';
+import { DailyTasks, Task, GoogleFormConfig, UserSettings } from '@/types/task';
 import { getTimeBlockLabel } from '@/utils/storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckIcon, ExternalLink, ListCheckIcon, Settings } from 'lucide-react';
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useTasks } from '@/hooks/useTasks';
 
 interface DailySummaryProps {
   dailyHistory: DailyTasks[];
@@ -37,6 +39,7 @@ const DEFAULT_FORM_FIELDS = {
 };
 
 const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
+  const { userName, userSettings, saveSettings } = useTasks();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showFieldsConfig, setShowFieldsConfig] = useState(false);
@@ -45,10 +48,11 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
     fields: DEFAULT_FORM_FIELDS
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [userName, setUserName] = useState('');
+  const [localUserName, setLocalUserName] = useState('');
   const [selectedClient, setSelectedClient] = useState('');
   const [timeSpent, setTimeSpent] = useState('0.25');
   const [githubIssue, setGithubIssue] = useState('');
+  const [isFirstVisit, setIsFirstVisit] = useState(true);
   
   const form = useForm({
     defaultValues: {
@@ -59,23 +63,26 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
     }
   });
   
-  // Load saved Google Form URL and field configs from localStorage
+  // Load saved Google Form URL and field configs from localStorage or userSettings
   useEffect(() => {
-    const savedFormConfig = localStorage.getItem('daily-cheer-form-config');
-    if (savedFormConfig) {
-      try {
-        const parsedConfig = JSON.parse(savedFormConfig);
-        setFormConfig(parsedConfig);
-      } catch (e) {
-        console.error('Error parsing saved form config:', e);
-      }
+    if (userSettings?.formConfig) {
+      setFormConfig(userSettings.formConfig);
+      setIsFirstVisit(false);
     }
     
-    const savedUserName = localStorage.getItem('daily-cheer-user-name');
-    if (savedUserName) {
-      setUserName(savedUserName);
+    if (userName) {
+      setLocalUserName(userName);
     }
-  }, []);
+    
+    // Set default values if available
+    if (userSettings?.defaultClient) {
+      setSelectedClient(userSettings.defaultClient);
+    }
+    
+    if (userSettings?.defaultTimeSpent) {
+      setTimeSpent(userSettings.defaultTimeSpent);
+    }
+  }, [userSettings, userName]);
 
   const sortedHistory = [...dailyHistory].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -119,13 +126,28 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
 
   // Function to save form configuration
   const saveFormConfig = () => {
-    localStorage.setItem('daily-cheer-form-config', JSON.stringify(formConfig));
-    localStorage.setItem('daily-cheer-user-name', userName);
+    // Save to user settings
+    const newSettings: UserSettings = {
+      formConfig: formConfig,
+      defaultClient: selectedClient,
+      defaultTimeSpent: timeSpent
+    };
+    
+    saveSettings(newSettings);
+    
     toast("Settings saved", {
       description: "Your form configuration has been saved",
     });
     setShowFieldsConfig(false);
+    setIsFirstVisit(false);
   };
+
+  // Handle first visit setup
+  useEffect(() => {
+    if (isFirstVisit && !userSettings?.formConfig?.url) {
+      setShowFieldsConfig(true);
+    }
+  }, [isFirstVisit, userSettings]);
 
   // Function to create a form prefill URL with the correct field mappings
   const createPrefillUrl = (tasks: Task[]): string | null => {
@@ -138,15 +160,17 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
       }
 
       const tasksDescription = formatTasksAsSummary(tasks);
-      const formattedDate = selectedDayTasks 
-        ? new Date(selectedDayTasks.date).toLocaleDateString('en-GB') // DD/MM/YYYY format
-        : '';
+      
+      // Use current date in DD/MM/YYYY format
+      const today = new Date();
+      const formattedDate = `${today.getDate().toString().padStart(2, '0')}/${
+        (today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
       
       // Create a basic URL with form parameters based on the form configuration
       const baseUrl = formConfig.url.includes('?') ? `${formConfig.url}&` : `${formConfig.url}?`;
       
       const params = new URLSearchParams({
-        [formConfig.fields.name]: userName,
+        [formConfig.fields.name]: localUserName,
         [formConfig.fields.date]: formattedDate,
         [formConfig.fields.client]: selectedClient,
         [formConfig.fields.time]: timeSpent,
@@ -170,7 +194,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
       return;
     }
 
-    if (!userName) {
+    if (!localUserName) {
       toast("Missing name", {
         description: "Please enter your name in the form settings",
       });
@@ -191,6 +215,10 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
         // Open the prefilled form in a new tab
         setTimeout(() => {
           window.open(prefillUrl, '_blank');
+          // Clear form fields after submission
+          setSelectedClient('');
+          setTimeSpent('0.25');
+          setGithubIssue('');
           setShowExportDialog(false);
           setIsSubmitting(false);
         }, 1000);
@@ -267,6 +295,73 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
           </div>
         )}
       </div>
+
+      {/* First Visit Setup Dialog */}
+      <Dialog open={isFirstVisit && !userSettings?.formConfig?.url} onOpenChange={(open) => setIsFirstVisit(!open)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Welcome! Set up your Google Form</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertDescription className="text-sm text-blue-800">
+                Let's set up your Google Form integration. This only needs to be done once.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Your Name</Label>
+                <Input
+                  placeholder="Enter your name"
+                  value={localUserName}
+                  onChange={(e) => setLocalUserName(e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Google Form URL</Label>
+                <Input
+                  placeholder="https://forms.google.com/..."
+                  value={formConfig.url}
+                  onChange={(e) => setFormConfig({...formConfig, url: e.target.value})}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Paste the URL of your Google Form here.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Default Client/Project</Label>
+                <Select 
+                  value={selectedClient} 
+                  onValueChange={setSelectedClient}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select default client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Project A">Project A</SelectItem>
+                    <SelectItem value="Project B">Project B</SelectItem>
+                    <SelectItem value="Project C">Project C</SelectItem>
+                    <SelectItem value="Internal">Internal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="pt-2 space-y-2">
+              <Button onClick={() => setShowFieldsConfig(true)} variant="outline" className="w-full">
+                <Settings className="h-4 w-4 mr-2" />
+                Configure Form Fields (Advanced)
+              </Button>
+              <Button onClick={saveFormConfig} className="w-full">
+                Save Settings
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Daily Summary Dialog */}
       <Dialog open={!!selectedDate} onOpenChange={(open) => !open && setSelectedDate(null)}>
@@ -377,7 +472,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
           <div className="space-y-4 py-4">
             <Alert className="bg-blue-50 border-blue-200">
               <AlertDescription className="text-sm text-blue-800">
-                Enter your Google Form URL below. The app will open the form in a new tab with your tasks pre-filled.
+                Your tasks will be sent to the Google Form with today's date.
               </AlertDescription>
             </Alert>
             
@@ -386,8 +481,8 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                 <Label>Your Name</Label>
                 <Input
                   placeholder="Enter your name"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
+                  value={localUserName}
+                  onChange={(e) => setLocalUserName(e.target.value)}
                 />
               </div>
               
@@ -428,7 +523,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                         ...formConfig, 
                         fields: {...formConfig.fields, name: e.target.value}
                       })}
-                      size="sm"
                       className="text-xs h-8"
                     />
                   </div>
@@ -442,7 +536,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                         ...formConfig, 
                         fields: {...formConfig.fields, date: e.target.value}
                       })}
-                      size="sm"
                       className="text-xs h-8"
                     />
                   </div>
@@ -456,7 +549,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                         ...formConfig, 
                         fields: {...formConfig.fields, client: e.target.value}
                       })}
-                      size="sm"
                       className="text-xs h-8"
                     />
                   </div>
@@ -470,7 +562,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                         ...formConfig, 
                         fields: {...formConfig.fields, time: e.target.value}
                       })}
-                      size="sm"
                       className="text-xs h-8"
                     />
                   </div>
@@ -484,7 +575,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                         ...formConfig, 
                         fields: {...formConfig.fields, description: e.target.value}
                       })}
-                      size="sm"
                       className="text-xs h-8"
                     />
                   </div>
@@ -498,7 +588,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                         ...formConfig, 
                         fields: {...formConfig.fields, githubIssue: e.target.value}
                       })}
-                      size="sm"
                       className="text-xs h-8"
                     />
                   </div>
