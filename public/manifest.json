@@ -2,7 +2,7 @@
 {
   "name": "Daily Cheer Tracker",
   "short_name": "Cheer Tracker",
-  "description": "Track your achievements throughout the day",
+  "description": "Track your achievements throughout the day and export to timesheets",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -13,5 +13,9 @@
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
     }
+  ],
+  "permissions": [
+    "storage",
+    "clipboardWrite"
   ]
 }

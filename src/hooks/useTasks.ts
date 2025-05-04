@@ -16,12 +16,20 @@ export const useTasks = () => {
   const [currentTimeBlock, setCurrentTimeBlock] = useState(getCurrentTimeBlock());
   const [lastPromptedTimeBlock, setLastPromptedTimeBlock] = useState<number | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [userName, setUserName] = useState('');
 
   // Load tasks on initial render
   useEffect(() => {
     const loadTasks = () => {
       const data = loadFromLocalStorage();
       setTaskState(data);
+      
+      // Load user name if available
+      const savedUserName = localStorage.getItem('daily-cheer-user-name');
+      if (savedUserName) {
+        setUserName(savedUserName);
+      }
+      
       setLoading(false);
     };
     loadTasks();
@@ -51,14 +59,16 @@ export const useTasks = () => {
   }, [currentTimeBlock, lastPromptedTimeBlock]);
   
   // Add a new task
-  const addTask = (text: string) => {
+  const addTask = (text: string, client?: string, githubIssue?: string) => {
     if (!text.trim()) return;
     
     const newTask: Task = {
       id: Date.now().toString(),
       text: text.trim(),
       timestamp: new Date().toISOString(),
-      timeBlock: currentTimeBlock
+      timeBlock: currentTimeBlock,
+      client: client,
+      githubIssue: githubIssue
     };
     
     const updatedState = addTaskToStorage(newTask);
@@ -71,6 +81,17 @@ export const useTasks = () => {
     });
     
     return newTask;
+  };
+
+  // Set user name
+  const setUser = (name: string) => {
+    setUserName(name);
+    localStorage.setItem('daily-cheer-user-name', name);
+    
+    // Also update taskState with userName
+    const updatedState = { ...taskState, userName: name };
+    setTaskState(updatedState);
+    saveToLocalStorage(updatedState);
   };
 
   // Clear tasks and store them in history
@@ -97,8 +118,10 @@ export const useTasks = () => {
     currentTimeBlock,
     showPrompt,
     loading,
+    userName,
     addTask,
     finalizeDayTasks,
-    dismissPrompt
+    dismissPrompt,
+    setUser
   };
 };
