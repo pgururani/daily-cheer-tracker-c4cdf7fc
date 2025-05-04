@@ -1,14 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { DailyTasks, Task } from '@/types/task';
 import { getTimeBlockLabel } from '@/utils/storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckIcon, ListCheckIcon } from 'lucide-react';
+import { CheckIcon, ExternalLink, ListCheckIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface DailySummaryProps {
   dailyHistory: DailyTasks[];
@@ -18,6 +19,15 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [formUrl, setFormUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Load saved Google Form URL from localStorage
+  useEffect(() => {
+    const savedFormUrl = localStorage.getItem('daily-cheer-form-url');
+    if (savedFormUrl) {
+      setFormUrl(savedFormUrl);
+    }
+  }, []);
 
   const sortedHistory = [...dailyHistory].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -51,6 +61,78 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
     return summary;
   };
 
+  // Helper function to check if URL is a valid Google Form URL
+  const isValidGoogleFormUrl = (url: string): boolean => {
+    // Basic check for Google Forms URL pattern
+    return url.includes('docs.google.com/forms') || 
+           url.includes('forms.gle') || 
+           url.includes('forms.google.com');
+  };
+
+  // Extract form ID from Google Form URL
+  const extractFormId = (url: string): string | null => {
+    try {
+      const urlObj = new URL(url);
+      
+      // Handle different Google Forms URL formats
+      if (url.includes('docs.google.com/forms')) {
+        // Format: https://docs.google.com/forms/d/e/{formId}/viewform
+        const pathParts = urlObj.pathname.split('/');
+        const formIdIndex = pathParts.indexOf('d') + 1;
+        if (formIdIndex < pathParts.length) {
+          return pathParts[formIdIndex];
+        }
+      } else if (url.includes('forms.gle')) {
+        // Short URL format
+        // We might need to follow the URL to get the actual form ID
+        // For now, just return the pathname
+        return urlObj.pathname.substring(1);
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error extracting form ID:', error);
+      return null;
+    }
+  };
+
+  // Function to create a form prefill URL
+  const createPrefillUrl = (formUrl: string, tasksData: string): string | null => {
+    try {
+      if (!isValidGoogleFormUrl(formUrl)) {
+        toast("Invalid Google Form URL", {
+          description: "Please enter a valid Google Form URL",
+        });
+        return null;
+      }
+
+      // For demo purposes, we'll use a simple approach to create a prefilled form URL
+      // In a real app, you would map specific form fields to corresponding data
+      
+      const formattedDate = selectedDayTasks 
+        ? new Date(selectedDayTasks.date).toLocaleDateString() 
+        : '';
+        
+      // Create a basic URL with form parameters
+      // NOTE: In a production app, you would need to know the actual form field IDs
+      // This is a simplified approach that assumes the form has entry.12345 format fields
+      const baseUrl = formUrl.includes('?') ? `${formUrl}&` : `${formUrl}?`;
+      
+      // Create URL parameters for common form fields
+      // The actual field IDs would need to be replaced with the real ones from the form
+      const params = new URLSearchParams({
+        'entry.123456789': formattedDate, // Date field (example ID)
+        'entry.987654321': tasksData,     // Tasks field (example ID)
+        'usp': 'pp_url'                   // Prefill parameter
+      });
+      
+      return `${baseUrl}${params.toString()}`;
+    } catch (error) {
+      console.error('Error creating prefill URL:', error);
+      return null;
+    }
+  };
+
   const handleSendToForm = () => {
     if (!formUrl || !selectedDayTasks) {
       toast("Please enter a form URL", {
@@ -59,16 +141,41 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
       return;
     }
 
-    toast("Ready to submit", {
-      description: "Data formatted for Google Form submission. You'll be redirected to complete the process.",
-    });
-
-    // In a real app, this would send data to Google Form or prepare it for submission
-    // For now, we'll just show a success message
-    setTimeout(() => {
-      setShowExportDialog(false);
-      setSelectedDate(null);
-    }, 1500);
+    setIsSubmitting(true);
+    
+    try {
+      // Save the form URL for future use
+      localStorage.setItem('daily-cheer-form-url', formUrl);
+      
+      const tasksData = formatTasksAsSummary(selectedDayTasks.tasks);
+      const prefillUrl = createPrefillUrl(formUrl, tasksData);
+      
+      if (prefillUrl) {
+        // Show success message
+        toast("Ready to submit", {
+          description: "You will be redirected to the Google Form to complete submission",
+        });
+        
+        // Open the prefilled form in a new tab
+        setTimeout(() => {
+          window.open(prefillUrl, '_blank');
+          setShowExportDialog(false);
+          setIsSubmitting(false);
+        }, 1000);
+      } else {
+        // Show error message
+        toast("Error creating form link", {
+          description: "Could not create a link to your Google Form. Please check the URL.",
+        });
+        setIsSubmitting(false);
+      }
+    } catch (error) {
+      console.error('Error in form submission:', error);
+      toast("Error", {
+        description: "Failed to prepare the form submission. Please try again.",
+      });
+      setIsSubmitting(false);
+    }
   };
 
   const handleCopyToClipboard = () => {
@@ -178,8 +285,14 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
             <DialogTitle>Export to Google Form</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertDescription className="text-sm text-blue-800">
+                Enter your Google Form URL below. The app will open the form in a new tab with your tasks pre-filled.
+              </AlertDescription>
+            </Alert>
+            
             <p className="text-sm text-muted-foreground">
-              Enter your Google Form URL to export the daily summary.
+              Enter the URL of your Google Form. You can find this by opening your form and copying the URL from the browser.
             </p>
             <Input
               placeholder="https://forms.google.com/..."
@@ -189,9 +302,11 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
             />
             <Button
               onClick={handleSendToForm}
-              className="w-full bg-cheer-blue hover:bg-cheer-blue/90"
+              className="w-full bg-cheer-blue hover:bg-cheer-blue/90 flex gap-2"
+              disabled={isSubmitting}
             >
-              Submit to Google Form
+              {isSubmitting ? "Preparing..." : "Open Form with Data"}
+              <ExternalLink size={16} />
             </Button>
           </div>
         </DialogContent>
