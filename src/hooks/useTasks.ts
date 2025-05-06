@@ -10,17 +10,8 @@ import {
   saveUserSettings,
   loadUserSettings
 } from '../utils/storage';
+import { DEFAULT_FORM_FIELDS } from '../utils/formUtils';
 import { toast } from 'sonner';
-
-// Default field IDs for Google Forms (based on common patterns)
-const DEFAULT_FORM_FIELDS = {
-  name: "entry.2005620554",       // Name field
-  date: "entry.1310344807",       // Date field
-  client: "entry.1065046570",     // Client field
-  time: "entry.1166974658",       // Time/duration field
-  description: "entry.839337160", // Description field
-  githubIssue: "entry.1042224615" // GitHub issue field
-};
 
 export const useTasks = () => {
   const [taskState, setTaskState] = useState<TaskState>({ tasks: [], dailyHistory: [] });

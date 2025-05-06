@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { DailyTasks, Task, GoogleFormConfig, UserSettings } from '@/types/task';
 import { getTimeBlockLabel } from '@/utils/storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckIcon, ExternalLink, ListCheckIcon, Settings } from 'lucide-react';
+import { CheckIcon, ExternalLink, ListCheckIcon, Settings, Loader2, Search } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -20,23 +20,18 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useTasks } from '@/hooks/useTasks';
+import { 
+  DEFAULT_FORM_FIELDS, 
+  detectFormFields, 
+  isValidGoogleFormUrl, 
+  guideToFindFieldIds 
+} from '@/utils/formUtils';
 
 interface DailySummaryProps {
   dailyHistory: DailyTasks[];
 }
-
-// Default field IDs for Google Forms (based on common patterns)
-const DEFAULT_FORM_FIELDS = {
-  name: "entry.2005620554",       // Name field
-  date: "entry.1310344807",       // Date field
-  client: "entry.1065046570",     // Client field
-  time: "entry.1166974658",       // Time/duration field
-  description: "entry.839337160", // Description field
-  githubIssue: "entry.1042224615" // GitHub issue field
-};
 
 const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
   const { userName, userSettings, saveSettings } = useTasks();
@@ -48,6 +43,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
     fields: DEFAULT_FORM_FIELDS
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDetectingFields, setIsDetectingFields] = useState(false);
   const [localUserName, setLocalUserName] = useState('');
   const [selectedClient, setSelectedClient] = useState('');
   const [timeSpent, setTimeSpent] = useState('0.25');
@@ -116,12 +112,37 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
     return summary;
   };
 
-  // Helper function to check if URL is a valid Google Form URL
-  const isValidGoogleFormUrl = (url: string): boolean => {
-    // Basic check for Google Forms URL pattern
-    return url.includes('docs.google.com/forms') || 
-           url.includes('forms.gle') || 
-           url.includes('forms.google.com');
+  // Handle detecting form fields automatically
+  const handleDetectFields = async () => {
+    if (!isValidGoogleFormUrl(formConfig.url)) {
+      toast("Invalid Google Form URL", {
+        description: "Please enter a valid Google Form URL",
+      });
+      return;
+    }
+    
+    setIsDetectingFields(true);
+    
+    try {
+      const detectedFields = await detectFormFields(formConfig.url);
+      
+      if (detectedFields) {
+        setFormConfig(detectedFields);
+        toast("Fields detected!", {
+          description: "Form fields have been automatically detected.",
+        });
+      } else {
+        // If automatic detection failed, guide the user
+        guideToFindFieldIds(formConfig.url);
+      }
+    } catch (error) {
+      console.error('Field detection error:', error);
+      toast("Detection failed", {
+        description: "Please enter field IDs manually.",
+      });
+    } finally {
+      setIsDetectingFields(false);
+    }
   };
 
   // Function to save form configuration
@@ -321,13 +342,28 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
               
               <div className="space-y-2">
                 <Label>Google Form URL</Label>
-                <Input
-                  placeholder="https://forms.google.com/..."
-                  value={formConfig.url}
-                  onChange={(e) => setFormConfig({...formConfig, url: e.target.value})}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    className="flex-1"
+                    placeholder="https://forms.google.com/..."
+                    value={formConfig.url}
+                    onChange={(e) => setFormConfig({...formConfig, url: e.target.value})}
+                  />
+                  <Button 
+                    variant="outline" 
+                    onClick={handleDetectFields} 
+                    disabled={isDetectingFields || !formConfig.url}
+                  >
+                    {isDetectingFields ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4 mr-2" />
+                    )}
+                    Detect Fields
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Paste the URL of your Google Form here.
+                  Paste the URL of your Google Form here and click "Detect Fields" to automatically extract field IDs.
                 </p>
               </div>
               
@@ -489,15 +525,31 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label>Google Form URL</Label>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowFieldsConfig(prev => !prev)}
-                    className="text-xs"
-                  >
-                    <Settings className="h-3 w-3 mr-1" />
-                    Configure Fields
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowFieldsConfig(prev => !prev)}
+                      className="text-xs"
+                    >
+                      <Settings className="h-3 w-3 mr-1" />
+                      Configure
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleDetectFields}
+                      disabled={isDetectingFields || !formConfig.url}
+                      className="text-xs"
+                    >
+                      {isDetectingFields ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Search className="h-3 w-3 mr-1" />
+                      )}
+                      Detect Fields
+                    </Button>
+                  </div>
                 </div>
                 <Input
                   placeholder="https://forms.google.com/..."
@@ -511,7 +563,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                 <div className="space-y-3 border p-3 rounded-md bg-slate-50">
                   <h4 className="font-medium text-sm">Form Field IDs</h4>
                   <p className="text-xs text-muted-foreground">
-                    These field IDs must match your Google Form. Inspect the form source to find them.
+                    These field IDs must match your Google Form. Use "Detect Fields" or inspect the form source to find them.
                   </p>
                   
                   <div className="grid gap-2">
