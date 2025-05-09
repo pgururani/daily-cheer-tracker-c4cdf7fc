@@ -1,5 +1,5 @@
 
-import { GoogleFormConfig } from "../types/task";
+import { GoogleFormConfig, UserSettings, Task } from "../types/task";
 import { toast } from "sonner";
 
 // Common field types in Google Forms
@@ -96,6 +96,89 @@ export const isValidGoogleFormUrl = (url: string): boolean => {
   return url.includes('docs.google.com/forms') || 
          url.includes('forms.gle') || 
          url.includes('forms.google.com');
+};
+
+/**
+ * Creates a Google Form prefill URL based on the form configuration and task data
+ */
+export const createFormPrefillUrl = (
+  formConfig: GoogleFormConfig, 
+  tasksDescription: string,
+  userName: string,
+  client: string,
+  timeSpent: string,
+  githubIssue: string
+): string | null => {
+  try {
+    if (!isValidGoogleFormUrl(formConfig.url)) {
+      toast("Invalid Google Form URL", {
+        description: "Please check your form URL in settings.",
+      });
+      return null;
+    }
+
+    // Use current date in DD/MM/YYYY format
+    const today = new Date();
+    const formattedDate = `${today.getDate().toString().padStart(2, '0')}/${
+      (today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+    
+    // Create a basic URL with form parameters based on the form configuration
+    const baseUrl = formConfig.url.includes('?') ? `${formConfig.url}&` : `${formConfig.url}?`;
+    
+    const params = new URLSearchParams({
+      [formConfig.fields.name]: userName,
+      [formConfig.fields.date]: formattedDate,
+      [formConfig.fields.client]: client,
+      [formConfig.fields.time]: timeSpent,
+      [formConfig.fields.description]: tasksDescription,
+      [formConfig.fields.githubIssue]: githubIssue,
+      'usp': 'pp_url' // Standard parameter for prefilling Google Forms
+    });
+    
+    return `${baseUrl}${params.toString()}`;
+  } catch (error) {
+    console.error('Error creating prefill URL:', error);
+    return null;
+  }
+};
+
+/**
+ * Formats task items into a readable summary text
+ */
+export const formatTasksAsSummary = (tasks: Task[]): string => {
+  // Group tasks by time block
+  const groupedTasks: Record<number, Task[]> = {};
+  
+  tasks.forEach(task => {
+    if (!groupedTasks[task.timeBlock]) {
+      groupedTasks[task.timeBlock] = [];
+    }
+    groupedTasks[task.timeBlock].push(task);
+  });
+  
+  // Build summary text
+  let summary = '';
+  
+  Object.keys(groupedTasks).map(Number).sort().forEach(timeBlock => {
+    const timeLabel = getTimeBlockLabel(timeBlock);
+    summary += `${timeLabel}:\n`;
+    
+    groupedTasks[timeBlock].forEach(task => {
+      summary += `- ${task.text}\n`;
+    });
+    
+    summary += '\n';
+  });
+  
+  return summary;
+};
+
+/**
+ * Gets a time block label (e.g., "8:00 - 10:00") for a given block number
+ */
+export const getTimeBlockLabel = (timeBlock: number): string => {
+  const hour = timeBlock * 2;
+  return `${hour}:00 - ${hour + 2}:00`;
 };
 
 /**

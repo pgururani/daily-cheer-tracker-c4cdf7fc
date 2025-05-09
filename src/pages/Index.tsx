@@ -6,21 +6,33 @@ import { useTasks } from "@/hooks/useTasks";
 import TaskPrompt from "@/components/TaskPrompt";
 import TaskList from "@/components/TaskList";
 import DailySummary from "@/components/DailySummary";
-import { Calendar, CheckCircle, ListTodo, Timer } from "lucide-react";
+import SetupWizard from "@/components/SetupWizard";
+import { Calendar, CheckCircle, ListTodo, Timer, Settings } from "lucide-react";
 
 const Index = () => {
   const { 
     tasks, 
     dailyHistory, 
     showPrompt, 
+    showSetupWizard,
     currentTimeBlock, 
+    userSettings,
     addTask, 
     finalizeDayTasks,
-    dismissPrompt
+    dismissPrompt,
+    completeSetup,
+    openSetupWizard
   } = useTasks();
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Setup wizard that shows on first launch */}
+      <SetupWizard 
+        open={showSetupWizard} 
+        onComplete={completeSetup}
+        initialSettings={userSettings}
+      />
+      
       {/* Task prompt that shows every 2 hours */}
       {showPrompt && (
         <TaskPrompt 
@@ -38,15 +50,27 @@ const Index = () => {
               <Timer className="animate-pulse" />
               <span>Daily Cheer Tracker</span>
             </h1>
-            <Button 
-              onClick={() => addTask("I opened the app!")} 
-              variant="secondary" 
-              size="sm"
-              className="text-sm bg-white/20 hover:bg-white/30 border-none"
-            >
-              <CheckCircle size={16} className="mr-2" />
-              Quick Add
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => addTask("I opened the app!")} 
+                variant="secondary" 
+                size="sm"
+                className="text-sm bg-white/20 hover:bg-white/30 border-none"
+              >
+                <CheckCircle size={16} className="mr-2" />
+                Quick Add
+              </Button>
+              {userSettings?.setupComplete && (
+                <Button 
+                  onClick={openSetupWizard} 
+                  variant="secondary" 
+                  size="sm"
+                  className="text-sm bg-white/20 hover:bg-white/30 border-none"
+                >
+                  <Settings size={16} className="mr-1" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </header>

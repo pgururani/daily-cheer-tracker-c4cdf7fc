@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Task, TaskState, UserSettings, GoogleFormConfig } from '../types/task';
+import { Task, TaskState, UserSettings, GoogleFormConfig, StaticFieldValues } from '../types/task';
 import { 
   loadFromLocalStorage, 
   saveToLocalStorage, 
@@ -8,9 +8,10 @@ import {
   clearTasksForToday,
   getCurrentTimeBlock,
   saveUserSettings,
-  loadUserSettings
+  loadUserSettings,
+  isSetupComplete
 } from '../utils/storage';
-import { DEFAULT_FORM_FIELDS } from '../utils/formUtils';
+import { DEFAULT_FORM_FIELDS, formatTasksAsSummary } from '../utils/formUtils';
 import { toast } from 'sonner';
 
 export const useTasks = () => {
@@ -19,6 +20,7 @@ export const useTasks = () => {
   const [currentTimeBlock, setCurrentTimeBlock] = useState(getCurrentTimeBlock());
   const [lastPromptedTimeBlock, setLastPromptedTimeBlock] = useState<number | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [userName, setUserName] = useState('');
   const [userSettings, setUserSettings] = useState<UserSettings>({
     formConfig: {
@@ -43,7 +45,16 @@ export const useTasks = () => {
       const settings = loadUserSettings();
       if (settings) {
         setUserSettings(settings);
+        
+        // If settings include userName, use it
+        if (settings.userName) {
+          setUserName(settings.userName);
+        }
       }
+      
+      // Check if setup is complete
+      const setupDone = isSetupComplete();
+      setShowSetupWizard(!setupDone);
       
       setLoading(false);
     };
@@ -111,15 +122,39 @@ export const useTasks = () => {
 
   // Save user settings
   const saveSettings = (settings: UserSettings) => {
-    setUserSettings(settings);
-    saveUserSettings(settings);
+    const updatedSettings = {
+      ...settings,
+      userName: settings.userName || userName
+    };
+    
+    setUserSettings(updatedSettings);
+    saveUserSettings(updatedSettings);
+    
+    // Update userName if provided in settings
+    if (settings.userName) {
+      setUserName(settings.userName);
+    }
     
     // Update taskState with user settings
-    const updatedState = { ...taskState, userSettings: settings };
+    const updatedState = { ...taskState, userSettings: updatedSettings, userName: updatedSettings.userName };
     setTaskState(updatedState);
     saveToLocalStorage(updatedState);
     
     return updatedState;
+  };
+
+  // Complete setup wizard
+  const completeSetup = (settings: UserSettings) => {
+    setShowSetupWizard(false);
+    return saveSettings({
+      ...settings,
+      setupComplete: true
+    });
+  };
+
+  // Format tasks as summary
+  const getTasksSummary = (tasks: Task[]): string => {
+    return formatTasksAsSummary(tasks);
   };
 
   // Clear tasks and store them in history
@@ -140,11 +175,17 @@ export const useTasks = () => {
     setShowPrompt(false);
   };
 
+  // Open setup wizard
+  const openSetupWizard = () => {
+    setShowSetupWizard(true);
+  };
+
   return {
     tasks: taskState.tasks,
     dailyHistory: taskState.dailyHistory,
     currentTimeBlock,
     showPrompt,
+    showSetupWizard,
     loading,
     userName,
     userSettings,
@@ -152,6 +193,9 @@ export const useTasks = () => {
     finalizeDayTasks,
     dismissPrompt,
     setUser,
-    saveSettings
+    saveSettings,
+    completeSetup,
+    openSetupWizard,
+    getTasksSummary
   };
 };

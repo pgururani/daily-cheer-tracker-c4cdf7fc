@@ -3,6 +3,7 @@ import { Task, DailyTasks, TaskState, UserSettings } from "../types/task";
 
 const STORAGE_KEY = 'daily-cheer-tracker-data';
 const USER_SETTINGS_KEY = 'daily-cheer-user-settings';
+const SETUP_COMPLETE_KEY = 'daily-cheer-setup-complete';
 
 export const saveToLocalStorage = (data: TaskState): void => {
   try {
@@ -28,6 +29,11 @@ export const loadFromLocalStorage = (): TaskState => {
 export const saveUserSettings = (settings: UserSettings): void => {
   try {
     localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
+    
+    // Also save setup complete flag separately for quick access
+    if (settings.setupComplete) {
+      localStorage.setItem(SETUP_COMPLETE_KEY, 'true');
+    }
   } catch (error) {
     console.error('Error saving user settings to localStorage:', error);
   }
@@ -44,6 +50,10 @@ export const loadUserSettings = (): UserSettings | null => {
     console.error('Error loading user settings from localStorage:', error);
     return null;
   }
+};
+
+export const isSetupComplete = (): boolean => {
+  return localStorage.getItem(SETUP_COMPLETE_KEY) === 'true';
 };
 
 export const clearTasksForToday = (): TaskState => {

@@ -35,9 +35,23 @@ export interface GoogleFormConfig {
   };
 }
 
+// Static field value configuration
+export interface StaticFieldValue {
+  isStatic: boolean;
+  value: string;
+}
+
+// Static field values mapping
+export interface StaticFieldValues {
+  [key: string]: StaticFieldValue;
+}
+
 // User preferences and settings
 export interface UserSettings {
+  userName?: string;
   formConfig: GoogleFormConfig;
   defaultClient?: string;
   defaultTimeSpent?: string;
+  staticValues?: StaticFieldValues;
+  setupComplete?: boolean;
 }
