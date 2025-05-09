@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, ExternalLink, RefreshCcw } from "lucide-react";
@@ -23,6 +23,26 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
     if (open) {
       setLoading(true);
       setError(null);
+    }
+  }, [formUrl, open]);
+
+  // Handle URL encoding issues with pre-filled forms
+  useEffect(() => {
+    if (open && formUrl) {
+      // Ensure the URL is properly encoded for iframe usage
+      try {
+        // Parse the URL to ensure it's properly formatted
+        const url = new URL(formUrl);
+        
+        // Some Google Form prefill URLs need additional encoding
+        if (url.searchParams.toString().length > 0) {
+          // The URL already has parameters
+          console.log("Form URL with parameters:", url.toString());
+        }
+      } catch (error) {
+        console.error("Error parsing form URL:", error);
+        setError("The form URL appears to be invalid or improperly formatted.");
+      }
     }
   }, [formUrl, open]);
   
@@ -55,6 +75,9 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
       <DialogContent className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            Some Google Forms don't allow embedding. If the form doesn't load, please use the "Open in new tab" option.
+          </DialogDescription>
           <div className="flex gap-2">
             <DialogClose asChild>
               <Button variant="outline" size="sm">Close</Button>
@@ -115,6 +138,8 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
             className="w-full h-full"
             onLoad={handleIframeLoad}
             onError={handleIframeError}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
           />
         </div>
       </DialogContent>

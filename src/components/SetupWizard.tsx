@@ -1,25 +1,27 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Settings, Search, ArrowRight, CheckCircle } from "lucide-react";
+import { Loader2, Settings, Search, ArrowRight, CheckCircle, X } from "lucide-react";
 import { GoogleFormConfig, UserSettings } from '@/types/task';
 import { DEFAULT_FORM_FIELDS, detectFormFields, isValidGoogleFormUrl } from '@/utils/formUtils';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SetupWizardProps {
   open: boolean;
   onComplete: (settings: UserSettings) => void;
   initialSettings?: UserSettings | null;
+  onClose?: () => void;
 }
 
-const SetupWizard: React.FC<SetupWizardProps> = ({ open, onComplete, initialSettings }) => {
+const SetupWizard: React.FC<SetupWizardProps> = ({ open, onComplete, initialSettings, onClose }) => {
   // Setup wizard steps
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
@@ -34,6 +36,13 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ open, onComplete, initialSett
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
   const [fieldMappingTab, setFieldMappingTab] = useState('automatic');
   const [staticValues, setStaticValues] = useState(initialSettings?.staticValues || {});
+
+  // Handle close
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
 
   // Go to next step if validation passes
   const nextStep = () => {
@@ -113,13 +122,26 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ open, onComplete, initialSett
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md md:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
             Daily Cheer Tracker Setup {currentStep > 1 && `(Step ${currentStep}/${totalSteps})`}
           </DialogTitle>
+          <DialogDescription>
+            Configure your app to track and submit your daily tasks.
+          </DialogDescription>
         </DialogHeader>
+
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="absolute right-2 top-2" 
+          onClick={handleClose}
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </Button>
 
         {/* Step 1: Welcome & User Name */}
         {currentStep === 1 && (
@@ -248,87 +270,91 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ open, onComplete, initialSett
                     </TabsContent>
                     
                     <TabsContent value="advanced" className="space-y-3 pt-2">
-                      <p className="text-xs text-muted-foreground">
-                        These field IDs must match your Google Form. They look like "entry.1234567890".
-                      </p>
-                      
-                      <div className="grid gap-2">
-                        <Label className="text-xs">Name Field ID</Label>
-                        <Input
-                          placeholder="entry.2005620554"
-                          value={formConfig.fields.name}
-                          onChange={(e) => setFormConfig({
-                            ...formConfig, 
-                            fields: {...formConfig.fields, name: e.target.value}
-                          })}
-                          className="text-xs h-8"
-                        />
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label className="text-xs">Date Field ID</Label>
-                        <Input
-                          placeholder="entry.1310344807"
-                          value={formConfig.fields.date}
-                          onChange={(e) => setFormConfig({
-                            ...formConfig, 
-                            fields: {...formConfig.fields, date: e.target.value}
-                          })}
-                          className="text-xs h-8"
-                        />
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label className="text-xs">Client Field ID</Label>
-                        <Input
-                          placeholder="entry.1065046570"
-                          value={formConfig.fields.client}
-                          onChange={(e) => setFormConfig({
-                            ...formConfig, 
-                            fields: {...formConfig.fields, client: e.target.value}
-                          })}
-                          className="text-xs h-8"
-                        />
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label className="text-xs">Time Field ID</Label>
-                        <Input
-                          placeholder="entry.1166974658"
-                          value={formConfig.fields.time}
-                          onChange={(e) => setFormConfig({
-                            ...formConfig, 
-                            fields: {...formConfig.fields, time: e.target.value}
-                          })}
-                          className="text-xs h-8"
-                        />
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label className="text-xs">Description Field ID</Label>
-                        <Input
-                          placeholder="entry.839337160"
-                          value={formConfig.fields.description}
-                          onChange={(e) => setFormConfig({
-                            ...formConfig, 
-                            fields: {...formConfig.fields, description: e.target.value}
-                          })}
-                          className="text-xs h-8"
-                        />
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label className="text-xs">GitHub Issue Field ID</Label>
-                        <Input
-                          placeholder="entry.1042224615"
-                          value={formConfig.fields.githubIssue}
-                          onChange={(e) => setFormConfig({
-                            ...formConfig, 
-                            fields: {...formConfig.fields, githubIssue: e.target.value}
-                          })}
-                          className="text-xs h-8"
-                        />
-                      </div>
+                      <ScrollArea className="h-60 pr-4">
+                        <div className="space-y-3">
+                          <p className="text-xs text-muted-foreground">
+                            These field IDs must match your Google Form. They look like "entry.1234567890".
+                          </p>
+                          
+                          <div className="grid gap-2">
+                            <Label className="text-xs">Name Field ID</Label>
+                            <Input
+                              placeholder="entry.2005620554"
+                              value={formConfig.fields.name}
+                              onChange={(e) => setFormConfig({
+                                ...formConfig, 
+                                fields: {...formConfig.fields, name: e.target.value}
+                              })}
+                              className="text-xs h-8"
+                            />
+                          </div>
+                          
+                          <div className="grid gap-2">
+                            <Label className="text-xs">Date Field ID</Label>
+                            <Input
+                              placeholder="entry.1310344807"
+                              value={formConfig.fields.date}
+                              onChange={(e) => setFormConfig({
+                                ...formConfig, 
+                                fields: {...formConfig.fields, date: e.target.value}
+                              })}
+                              className="text-xs h-8"
+                            />
+                          </div>
+                          
+                          <div className="grid gap-2">
+                            <Label className="text-xs">Client Field ID</Label>
+                            <Input
+                              placeholder="entry.1065046570"
+                              value={formConfig.fields.client}
+                              onChange={(e) => setFormConfig({
+                                ...formConfig, 
+                                fields: {...formConfig.fields, client: e.target.value}
+                              })}
+                              className="text-xs h-8"
+                            />
+                          </div>
+                          
+                          <div className="grid gap-2">
+                            <Label className="text-xs">Time Field ID</Label>
+                            <Input
+                              placeholder="entry.1166974658"
+                              value={formConfig.fields.time}
+                              onChange={(e) => setFormConfig({
+                                ...formConfig, 
+                                fields: {...formConfig.fields, time: e.target.value}
+                              })}
+                              className="text-xs h-8"
+                            />
+                          </div>
+                          
+                          <div className="grid gap-2">
+                            <Label className="text-xs">Description Field ID</Label>
+                            <Input
+                              placeholder="entry.839337160"
+                              value={formConfig.fields.description}
+                              onChange={(e) => setFormConfig({
+                                ...formConfig, 
+                                fields: {...formConfig.fields, description: e.target.value}
+                              })}
+                              className="text-xs h-8"
+                            />
+                          </div>
+                          
+                          <div className="grid gap-2">
+                            <Label className="text-xs">GitHub Issue Field ID</Label>
+                            <Input
+                              placeholder="entry.1042224615"
+                              value={formConfig.fields.githubIssue}
+                              onChange={(e) => setFormConfig({
+                                ...formConfig, 
+                                fields: {...formConfig.fields, githubIssue: e.target.value}
+                              })}
+                              className="text-xs h-8"
+                            />
+                          </div>
+                        </div>
+                      </ScrollArea>
                     </TabsContent>
                   </Tabs>
                 </div>

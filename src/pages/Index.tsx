@@ -21,6 +21,7 @@ const Index = () => {
     finalizeDayTasks,
     dismissPrompt,
     completeSetup,
+    closeSetupWizard,
     openSetupWizard
   } = useTasks();
 
@@ -31,6 +32,7 @@ const Index = () => {
         open={showSetupWizard} 
         onComplete={completeSetup}
         initialSettings={userSettings}
+        onClose={closeSetupWizard}
       />
       
       {/* Task prompt that shows every 2 hours */}

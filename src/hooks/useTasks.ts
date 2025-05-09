@@ -152,6 +152,20 @@ export const useTasks = () => {
     });
   };
 
+  // Close setup wizard without completing
+  const closeSetupWizard = () => {
+    // If user has already completed setup before, just close it
+    if (isSetupComplete()) {
+      setShowSetupWizard(false);
+    } else {
+      // If this is initial setup, show a warning
+      toast("Setup not complete", { 
+        description: "You'll need to complete setup to use all features."
+      });
+      setShowSetupWizard(false);
+    }
+  };
+
   // Format tasks as summary
   const getTasksSummary = (tasks: Task[]): string => {
     return formatTasksAsSummary(tasks);
@@ -195,6 +209,7 @@ export const useTasks = () => {
     setUser,
     saveSettings,
     completeSetup,
+    closeSetupWizard,
     openSetupWizard,
     getTasksSummary
   };

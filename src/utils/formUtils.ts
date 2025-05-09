@@ -122,20 +122,28 @@ export const createFormPrefillUrl = (
     const formattedDate = `${today.getDate().toString().padStart(2, '0')}/${
       (today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
     
-    // Create a basic URL with form parameters based on the form configuration
-    const baseUrl = formConfig.url.includes('?') ? `${formConfig.url}&` : `${formConfig.url}?`;
+    // Extract the base form URL without any existing parameters
+    const baseFormUrl = formConfig.url.split('?')[0];
     
-    const params = new URLSearchParams({
-      [formConfig.fields.name]: userName,
-      [formConfig.fields.date]: formattedDate,
-      [formConfig.fields.client]: client,
-      [formConfig.fields.time]: timeSpent,
-      [formConfig.fields.description]: tasksDescription,
-      [formConfig.fields.githubIssue]: githubIssue,
-      'usp': 'pp_url' // Standard parameter for prefilling Google Forms
-    });
+    // Create URL parameters
+    const params = new URLSearchParams();
     
-    return `${baseUrl}${params.toString()}`;
+    // Add each field with proper encoding
+    if (userName) params.append(formConfig.fields.name, userName);
+    if (formattedDate) params.append(formConfig.fields.date, formattedDate);
+    if (client) params.append(formConfig.fields.client, client);
+    if (timeSpent) params.append(formConfig.fields.time, timeSpent);
+    if (tasksDescription) params.append(formConfig.fields.description, tasksDescription);
+    if (githubIssue) params.append(formConfig.fields.githubIssue, githubIssue);
+    
+    // Add Google's prefill parameter
+    params.append('usp', 'pp_url');
+    
+    // Create the complete URL
+    const prefillUrl = `${baseFormUrl}?${params.toString()}`;
+    
+    console.log("Generated prefill URL:", prefillUrl);
+    return prefillUrl;
   } catch (error) {
     console.error('Error creating prefill URL:', error);
     return null;
