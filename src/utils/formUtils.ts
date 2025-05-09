@@ -123,18 +123,41 @@ export const createFormPrefillUrl = (
       (today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
     
     // Extract the base form URL without any existing parameters
-    const baseFormUrl = formConfig.url.split('?')[0];
+    // Make sure to remove the /viewform part if it exists and replace with /formResponse
+    let baseFormUrl = formConfig.url.split('?')[0];
+    
+    // If URL has /viewform, replace it with /formResponse for prefill to work properly
+    if (baseFormUrl.endsWith('/viewform')) {
+      baseFormUrl = baseFormUrl.replace('/viewform', '/formResponse');
+    }
     
     // Create URL parameters
     const params = new URLSearchParams();
     
     // Add each field with proper encoding
-    if (userName) params.append(formConfig.fields.name, userName);
-    if (formattedDate) params.append(formConfig.fields.date, formattedDate);
-    if (client) params.append(formConfig.fields.client, client);
-    if (timeSpent) params.append(formConfig.fields.time, timeSpent);
-    if (tasksDescription) params.append(formConfig.fields.description, tasksDescription);
-    if (githubIssue) params.append(formConfig.fields.githubIssue, githubIssue);
+    if (userName && formConfig.fields.name) {
+      params.append(formConfig.fields.name, userName);
+    }
+    
+    if (formattedDate && formConfig.fields.date) {
+      params.append(formConfig.fields.date, formattedDate);
+    }
+    
+    if (client && formConfig.fields.client) {
+      params.append(formConfig.fields.client, client);
+    }
+    
+    if (timeSpent && formConfig.fields.time) {
+      params.append(formConfig.fields.time, timeSpent);
+    }
+    
+    if (tasksDescription && formConfig.fields.description) {
+      params.append(formConfig.fields.description, tasksDescription);
+    }
+    
+    if (githubIssue && formConfig.fields.githubIssue) {
+      params.append(formConfig.fields.githubIssue, githubIssue);
+    }
     
     // Add Google's prefill parameter
     params.append('usp', 'pp_url');

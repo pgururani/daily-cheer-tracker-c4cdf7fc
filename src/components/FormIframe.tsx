@@ -18,7 +18,7 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Reset loading state when form URL changes
+  // Reset loading state when form URL changes or when modal opens
   useEffect(() => {
     if (open) {
       setLoading(true);
@@ -26,25 +26,20 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
     }
   }, [formUrl, open]);
 
-  // Handle URL encoding issues with pre-filled forms
+  // Most Google Forms don't allow embedding in iframes (X-Frame-Options restriction)
+  // So we'll preemptively show a warning and offer "open in new tab" option
   useEffect(() => {
-    if (open && formUrl) {
-      // Ensure the URL is properly encoded for iframe usage
-      try {
-        // Parse the URL to ensure it's properly formatted
-        const url = new URL(formUrl);
-        
-        // Some Google Form prefill URLs need additional encoding
-        if (url.searchParams.toString().length > 0) {
-          // The URL already has parameters
-          console.log("Form URL with parameters:", url.toString());
+    if (open && formUrl && formUrl.includes('docs.google.com')) {
+      // Set a timeout to check if the form loads, otherwise show an error
+      const timer = setTimeout(() => {
+        if (loading) {
+          setError("Google Forms often restrict embedding in iframes. Please use the 'Open in new tab' option.");
         }
-      } catch (error) {
-        console.error("Error parsing form URL:", error);
-        setError("The form URL appears to be invalid or improperly formatted.");
-      }
+      }, 3000);
+      
+      return () => clearTimeout(timer);
     }
-  }, [formUrl, open]);
+  }, [open, formUrl, loading]);
   
   const handleIframeLoad = () => {
     setLoading(false);
@@ -55,14 +50,22 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
     setError("There was a problem loading the form. It might be restricted from being displayed in iframes.");
   };
   
-  const handleOpenExternal = () => {
+  const handleOpenExternal = (e: React.MouseEvent) => {
+    // Prevent any default form submission
+    e.preventDefault();
+    
+    // Open in new tab, but don't reload current page
     window.open(formUrl, '_blank');
+    
     toast("Form opened externally", {
       description: "The Google Form has been opened in a new tab."
     });
   };
   
-  const reloadIframe = () => {
+  const reloadIframe = (e: React.MouseEvent) => {
+    // Prevent any default form submission
+    e.preventDefault();
+    
     setLoading(true);
     setError(null);
     if (iframeRef.current) {
@@ -121,7 +124,10 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
                 <AlertDescription className="text-sm text-red-800">
                   {error}
                   <div className="mt-2">
-                    <Button onClick={handleOpenExternal} className="w-full flex items-center justify-center gap-2">
+                    <Button 
+                      onClick={handleOpenExternal} 
+                      className="w-full flex items-center justify-center gap-2"
+                    >
                       <ExternalLink size={16} />
                       <span>Open in new tab instead</span>
                     </Button>
