@@ -1,3 +1,4 @@
+
 import { GoogleFormConfig, UserSettings, Task } from "../types/task";
 import { toast } from "sonner";
 
@@ -105,10 +106,56 @@ export const guideToFindFieldIds = (formUrl: string) => {
  * Check if a URL is a valid Google Form URL
  */
 export const isValidGoogleFormUrl = (url: string): boolean => {
-  // Basic check for Google Forms URL pattern
-  return url.includes('docs.google.com/forms') || 
-         url.includes('forms.gle') || 
-         url.includes('forms.google.com');
+  if (!url) return false;
+  
+  try {
+    // Check if the URL is valid
+    new URL(url);
+    
+    // Basic check for Google Forms URL pattern
+    return url.includes('docs.google.com/forms') || 
+           url.includes('forms.gle') || 
+           url.includes('forms.google.com');
+  } catch (e) {
+    console.error("Invalid URL format:", e);
+    return false;
+  }
+};
+
+/**
+ * Process and normalize a Google Form URL to ensure it works for prefilling
+ */
+export const normalizeGoogleFormUrl = (url: string): string => {
+  if (!url) return '';
+  
+  try {
+    // Parse the URL
+    const parsedUrl = new URL(url);
+    
+    // For short URLs, return as is
+    if (url.includes('forms.gle') || url.includes('forms.app')) {
+      return url;
+    }
+    
+    // For regular Google Form URLs, ensure they're in the correct format
+    if (url.includes('docs.google.com/forms')) {
+      let baseUrl = parsedUrl.origin + parsedUrl.pathname;
+      
+      // Ensure URL ends with /viewform for prefilling
+      if (!baseUrl.includes('/viewform')) {
+        baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash if present
+        baseUrl += '/viewform';
+      }
+      
+      return baseUrl;
+    }
+    
+    // Default case
+    return url;
+  } catch (e) {
+    console.error("Error normalizing URL:", e);
+    return url;
+  }
 };
 
 /**
@@ -124,7 +171,7 @@ export const createFormPrefillUrl = (
 ): string | null => {
   try {
     if (!isValidGoogleFormUrl(formConfig.url)) {
-      toast("Invalid Google Form URL", {
+      toast.error("Invalid Google Form URL", {
         description: "Please check your form URL in settings.",
       });
       return null;
@@ -135,32 +182,10 @@ export const createFormPrefillUrl = (
     const formattedDate = `${today.getDate().toString().padStart(2, '0')}/${
       (today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
     
-    // Extract the base form URL
-    const formUrl = formConfig.url;
-    let baseFormUrl = '';
+    // Normalize the form URL for prefilling
+    const baseFormUrl = normalizeGoogleFormUrl(formConfig.url);
     
-    // Handle different Google Form URL formats
-    if (formUrl.includes('forms.gle') || formUrl.includes('forms.app')) {
-      // Short URLs - we need to use them as is
-      baseFormUrl = formUrl;
-    } else if (formUrl.includes('docs.google.com/forms')) {
-      // Full Google Form URLs
-      baseFormUrl = formUrl.split('?')[0]; // Remove any existing query params
-      
-      // If it's a view form, prepare it for prefill
-      if (baseFormUrl.includes('/viewform')) {
-        baseFormUrl = baseFormUrl;
-      } else if (!baseFormUrl.endsWith('/viewform')) {
-        // If URL doesn't end with /viewform, add it
-        baseFormUrl = baseFormUrl.replace(/\/$/, ''); // Remove trailing slash if present
-        baseFormUrl += '/viewform';
-      }
-    } else {
-      // Unknown format, use as-is
-      baseFormUrl = formUrl;
-    }
-    
-    // Create URL parameters
+    // Create URL parameters with proper encoding
     const params = new URLSearchParams();
     
     // Add each field with proper encoding
@@ -201,6 +226,9 @@ export const createFormPrefillUrl = (
     return prefillUrl;
   } catch (error) {
     console.error('Error creating prefill URL:', error);
+    toast.error("Failed to create form URL", {
+      description: "An error occurred while generating the form URL.",
+    });
     return null;
   }
 };

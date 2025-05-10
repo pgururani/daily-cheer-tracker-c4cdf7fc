@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ExternalLink, Copy, CheckCircle, AlertCircle } from "lucide-react";
+import { ExternalLink, Copy, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { isValidGoogleFormUrl } from "@/utils/formUtils";
 
 interface FormIframeProps {
   open: boolean;
@@ -15,20 +16,54 @@ interface FormIframeProps {
 
 const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, title = "Google Form" }) => {
   const [copied, setCopied] = useState(false);
+  const [isValidUrl, setIsValidUrl] = useState(true);
+  const [isUrlTested, setIsUrlTested] = useState(false);
+  
+  // Validate the form URL when it changes
+  useEffect(() => {
+    if (formUrl) {
+      setIsValidUrl(isValidGoogleFormUrl(formUrl));
+      setIsUrlTested(true);
+    } else {
+      setIsValidUrl(false);
+      setIsUrlTested(false);
+    }
+  }, [formUrl]);
   
   // Handle opening the form in a new tab
   const handleOpenExternal = () => {
-    window.open(formUrl, '_blank');
+    if (!formUrl) {
+      toast.error("No form URL available");
+      return;
+    }
     
-    toast("Form opened externally", {
-      description: "The Google Form has been opened in a new tab with your data pre-filled."
-    });
+    try {
+      // Ensure URL is properly encoded
+      const encodedUrl = encodeURI(decodeURI(formUrl));
+      window.open(encodedUrl, '_blank', 'noopener,noreferrer');
+      
+      toast("Form opened externally", {
+        description: "The Google Form has been opened in a new tab with your data pre-filled."
+      });
+    } catch (error) {
+      console.error("Error opening form:", error);
+      toast.error("Failed to open form", {
+        description: "There was a problem opening the form. Please try copying the link instead."
+      });
+    }
   };
   
-  // Copy link to clipboard
+  // Copy link to clipboard with improved error handling
   const copyLinkToClipboard = () => {
-    if (formUrl) {
-      navigator.clipboard.writeText(formUrl);
+    if (!formUrl) {
+      toast.error("No form URL available");
+      return;
+    }
+    
+    try {
+      // Ensure URL is properly encoded
+      const encodedUrl = encodeURI(decodeURI(formUrl));
+      navigator.clipboard.writeText(encodedUrl);
       setCopied(true);
       
       toast("Link copied", {
@@ -37,6 +72,58 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
       
       // Reset copied state after 2 seconds
       setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Error copying to clipboard:", error);
+      toast.error("Failed to copy link", {
+        description: "There was a problem copying the link. Please try again."
+      });
+    }
+  };
+  
+  // Force test the URL by attempting to open it in a hidden iframe
+  const testFormUrl = () => {
+    if (!formUrl) {
+      toast.error("No form URL available");
+      return;
+    }
+    
+    setIsUrlTested(false);
+    
+    try {
+      // Create a temporary hidden iframe to test the URL
+      const testFrame = document.createElement('iframe');
+      testFrame.style.display = 'none';
+      testFrame.src = formUrl;
+      
+      // Listen for load events
+      testFrame.onload = () => {
+        setIsValidUrl(true);
+        setIsUrlTested(true);
+        document.body.removeChild(testFrame);
+        toast.success("Form URL verified");
+      };
+      
+      // Listen for error events
+      testFrame.onerror = () => {
+        setIsValidUrl(false);
+        setIsUrlTested(true);
+        document.body.removeChild(testFrame);
+        toast.error("Invalid form URL");
+      };
+      
+      // Add the iframe to the document and remove after 3 seconds (timeout)
+      document.body.appendChild(testFrame);
+      setTimeout(() => {
+        if (document.body.contains(testFrame)) {
+          document.body.removeChild(testFrame);
+          setIsValidUrl(true); // Assume valid if no error within timeout
+          setIsUrlTested(true);
+        }
+      }, 3000);
+    } catch (error) {
+      console.error("Error testing URL:", error);
+      setIsValidUrl(false);
+      setIsUrlTested(true);
     }
   };
   
@@ -60,6 +147,18 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
               </span>
             </AlertDescription>
           </Alert>
+          
+          {!isValidUrl && isUrlTested && (
+            <Alert className="bg-yellow-50 border-yellow-200">
+              <AlertDescription className="text-sm text-yellow-800 flex items-start gap-2">
+                <AlertCircle size={18} className="text-yellow-800 shrink-0 mt-0.5" />
+                <span>
+                  The form URL may be invalid or contain encoding issues. 
+                  Try using the "Open in new tab" option which handles URL encoding.
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
           
           <div className="space-y-4">
             <Button 
@@ -88,9 +187,25 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
               )}
             </Button>
             
+            {!isValidUrl && (
+              <Button
+                onClick={testFormUrl}
+                variant="outline"
+                className="w-full flex items-center justify-center gap-2"
+              >
+                <RefreshCw size={16} />
+                <span>Test form URL</span>
+              </Button>
+            )}
+            
             <div className="text-sm text-gray-600 text-center mt-4 space-y-2">
               <p>Google Forms requires manual form submission due to security restrictions.</p>
               <p className="font-medium">Opening the form will preserve all your pre-filled data.</p>
+              {formUrl && (
+                <p className="text-xs break-all mt-2 text-gray-400">
+                  URL: {formUrl.length > 50 ? `${formUrl.substring(0, 50)}...` : formUrl}
+                </p>
+              )}
             </div>
             
             <DialogClose asChild>
