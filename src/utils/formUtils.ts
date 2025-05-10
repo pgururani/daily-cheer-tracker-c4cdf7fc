@@ -136,29 +136,28 @@ export const createFormPrefillUrl = (
       (today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
     
     // Extract the base form URL
-    let baseFormUrl = formConfig.url.split('?')[0];
+    const formUrl = formConfig.url;
+    let baseFormUrl = '';
     
-    // Remove any trailing slashes
-    baseFormUrl = baseFormUrl.replace(/\/$/, '');
-    
-    // URL transformation for Google Form prefill to work correctly
-    if (baseFormUrl.includes('/viewform')) {
-      baseFormUrl = baseFormUrl.replace('/viewform', '/formResponse');
-    }
-    
-    // If URL ends with /forms/d/e/ID or /forms/d/ID
-    if (baseFormUrl.match(/\/forms\/d\/e\/.*\/$/)) {
-      baseFormUrl += 'formResponse';
-    } else if (baseFormUrl.match(/\/forms\/d\/.*\/$/)) {
-      baseFormUrl += 'formResponse';
-    } else if (!baseFormUrl.includes('/formResponse')) {
-      // For short URLs like forms.gle/xyz
-      if (baseFormUrl.includes('forms.gle')) {
-        // We can't modify short URLs, so we'll use it as is
-        console.log("Using short form URL as-is:", baseFormUrl);
-      } else {
-        baseFormUrl += '/formResponse';
+    // Handle different Google Form URL formats
+    if (formUrl.includes('forms.gle') || formUrl.includes('forms.app')) {
+      // Short URLs - we need to use them as is
+      baseFormUrl = formUrl;
+    } else if (formUrl.includes('docs.google.com/forms')) {
+      // Full Google Form URLs
+      baseFormUrl = formUrl.split('?')[0]; // Remove any existing query params
+      
+      // If it's a view form, prepare it for prefill
+      if (baseFormUrl.includes('/viewform')) {
+        baseFormUrl = baseFormUrl;
+      } else if (!baseFormUrl.endsWith('/viewform')) {
+        // If URL doesn't end with /viewform, add it
+        baseFormUrl = baseFormUrl.replace(/\/$/, ''); // Remove trailing slash if present
+        baseFormUrl += '/viewform';
       }
+    } else {
+      // Unknown format, use as-is
+      baseFormUrl = formUrl;
     }
     
     // Create URL parameters
@@ -189,11 +188,14 @@ export const createFormPrefillUrl = (
       params.append(formConfig.fields.githubIssue, githubIssue);
     }
     
-    // Add Google's prefill parameter
-    params.append('usp', 'pp_url');
-    
     // Create the complete URL
-    const prefillUrl = `${baseFormUrl}?${params.toString()}`;
+    let prefillUrl = baseFormUrl;
+    const queryString = params.toString();
+    
+    // Add the parameters with the correct separator
+    if (queryString) {
+      prefillUrl += (prefillUrl.includes('?') ? '&' : '?') + queryString;
+    }
     
     console.log("Generated prefill URL:", prefillUrl);
     return prefillUrl;

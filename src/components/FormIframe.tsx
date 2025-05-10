@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ExternalLink, Copy, Share, CheckCircle } from "lucide-react";
+import { ExternalLink, Copy, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface FormIframeProps {
@@ -21,7 +21,7 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
     window.open(formUrl, '_blank');
     
     toast("Form opened externally", {
-      description: "The Google Form has been opened in a new tab."
+      description: "The Google Form has been opened in a new tab with your data pre-filled."
     });
   };
   
@@ -46,14 +46,18 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Google Forms work best when opened directly. Please choose an option below to continue.
+            Your form is ready with your data pre-filled. Choose how you'd like to continue.
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           <Alert className="bg-blue-50 border-blue-200">
-            <AlertDescription className="text-sm text-blue-800">
-              Your form data has been prepared and is ready to be submitted using one of these methods.
+            <AlertDescription className="text-sm text-blue-800 flex items-start gap-2">
+              <AlertCircle size={18} className="text-blue-800 shrink-0 mt-0.5" />
+              <span>
+                Due to Google Forms security restrictions, direct submission isn't possible. 
+                Your form data has been prepared and can be submitted using one of these options.
+              </span>
             </AlertDescription>
           </Alert>
           
@@ -63,7 +67,7 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
               className="w-full flex items-center justify-center gap-2 bg-cheer-blue hover:bg-cheer-blue/90"
             >
               <ExternalLink size={16} />
-              <span>Open form in new tab</span>
+              <span>Open pre-filled form in new tab</span>
             </Button>
             
             <Button 
@@ -85,8 +89,8 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
             </Button>
             
             <div className="text-sm text-gray-600 text-center mt-4 space-y-2">
-              <p>Due to security restrictions, Google Forms cannot be directly embedded.</p>
-              <p className="font-medium">Both options above will preserve your pre-filled data.</p>
+              <p>Google Forms requires manual form submission due to security restrictions.</p>
+              <p className="font-medium">Opening the form will preserve all your pre-filled data.</p>
             </div>
             
             <DialogClose asChild>
