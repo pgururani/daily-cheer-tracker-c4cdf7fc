@@ -135,21 +135,30 @@ export const createFormPrefillUrl = (
     const formattedDate = `${today.getDate().toString().padStart(2, '0')}/${
       (today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
     
-    // Extract the base form URL and ensure it's correctly formatted for prefill URLs
+    // Extract the base form URL
     let baseFormUrl = formConfig.url.split('?')[0];
     
-    // Make sure we're using the right endpoint for Google Form prefills
     // Remove any trailing slashes
     baseFormUrl = baseFormUrl.replace(/\/$/, '');
     
-    // If URL is just domain.com/forms/d/e/FORM_ID, append /formResponse
-    if (!baseFormUrl.includes('/formResponse') && !baseFormUrl.includes('/viewform')) {
-      baseFormUrl += '/formResponse';
+    // URL transformation for Google Form prefill to work correctly
+    if (baseFormUrl.includes('/viewform')) {
+      baseFormUrl = baseFormUrl.replace('/viewform', '/formResponse');
     }
     
-    // If URL has /viewform, replace it with /formResponse for prefill to work properly
-    if (baseFormUrl.endsWith('/viewform')) {
-      baseFormUrl = baseFormUrl.replace('/viewform', '/formResponse');
+    // If URL ends with /forms/d/e/ID or /forms/d/ID
+    if (baseFormUrl.match(/\/forms\/d\/e\/.*\/$/)) {
+      baseFormUrl += 'formResponse';
+    } else if (baseFormUrl.match(/\/forms\/d\/.*\/$/)) {
+      baseFormUrl += 'formResponse';
+    } else if (!baseFormUrl.includes('/formResponse')) {
+      // For short URLs like forms.gle/xyz
+      if (baseFormUrl.includes('forms.gle')) {
+        // We can't modify short URLs, so we'll use it as is
+        console.log("Using short form URL as-is:", baseFormUrl);
+      } else {
+        baseFormUrl += '/formResponse';
+      }
     }
     
     // Create URL parameters

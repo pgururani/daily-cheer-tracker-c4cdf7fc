@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -134,7 +133,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
           description: "Your form has been prepared with your task data.",
         });
         
-        // Open the form iframe
+        // Open the form dialog with options
         setShowFormIframe(true);
         setShowExportDialog(false);
         setIsSubmitting(false);
@@ -151,12 +150,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
         description: "Failed to prepare the form submission. Please try again.",
       });
       setIsSubmitting(false);
-    }
-  };
-
-  const handleOpenDirectly = () => {
-    if (formPrefillUrl) {
-      window.open(formPrefillUrl, '_blank');
     }
   };
 
@@ -389,7 +382,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
         </DialogContent>
       </Dialog>
       
-      {/* Form Iframe Dialog */}
+      {/* Form Options Dialog */}
       <FormIframe 
         open={showFormIframe}
         onOpenChange={handleFormIframeClose}
