@@ -23,26 +23,39 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
     if (open) {
       setLoading(true);
       setError(null);
+      
+      // Check if it's a Google Form and show direct warning for better UX
+      if (formUrl && (formUrl.includes('docs.google.com') || formUrl.includes('forms.gle'))) {
+        // Set a short timer before showing the warning - most Google Forms will fail
+        const timer = setTimeout(() => {
+          setError("Google Forms typically restrict embedding. We recommend using the 'Open in new tab' option.");
+        }, 1000);
+        
+        return () => clearTimeout(timer);
+      }
     }
   }, [formUrl, open]);
-
-  // Most Google Forms don't allow embedding in iframes (X-Frame-Options restriction)
-  // So we'll preemptively show a warning and offer "open in new tab" option
-  useEffect(() => {
-    if (open && formUrl && formUrl.includes('docs.google.com')) {
-      // Set a timeout to check if the form loads, otherwise show an error
-      const timer = setTimeout(() => {
-        if (loading) {
-          setError("Google Forms often restrict embedding in iframes. Please use the 'Open in new tab' option.");
-        }
-      }, 3000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [open, formUrl, loading]);
   
   const handleIframeLoad = () => {
     setLoading(false);
+    
+    // Check if the iframe content loaded successfully
+    try {
+      // This will throw an error if cross-origin restrictions apply
+      if (iframeRef.current && iframeRef.current.contentWindow) {
+        const contentUrl = iframeRef.current.contentWindow.location.href;
+        
+        // If we got redirected to an access/login page
+        if (contentUrl.includes('accounts.google.com') || 
+            contentUrl.includes('signin') || 
+            contentUrl.includes('access')) {
+          setError("This form requires you to sign in. Please use the 'Open in new tab' option.");
+        }
+      }
+    } catch (e) {
+      // Cross-origin error - expected with Google Forms
+      console.log("Cross-origin iframe access restricted");
+    }
   };
   
   const handleIframeError = () => {
@@ -73,26 +86,43 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
     }
   };
   
+  const copyLinkToClipboard = () => {
+    if (formUrl) {
+      navigator.clipboard.writeText(formUrl);
+      toast("Link copied", {
+        description: "The form URL has been copied to your clipboard."
+      });
+    }
+  };
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Some Google Forms don't allow embedding. If the form doesn't load, please use the "Open in new tab" option.
+            Google Forms typically don't allow embedding due to security restrictions. We recommend using one of the alternatives below.
           </DialogDescription>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <DialogClose asChild>
               <Button variant="outline" size="sm">Close</Button>
             </DialogClose>
             <Button 
-              variant="outline" 
+              variant="secondary" 
               size="sm" 
               onClick={handleOpenExternal}
               className="flex items-center gap-1"
             >
               <ExternalLink size={14} />
               <span>Open in new tab</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={copyLinkToClipboard}
+              className="flex items-center gap-1"
+            >
+              <span>Copy link</span>
             </Button>
             {error && (
               <Button 
@@ -119,21 +149,38 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
           )}
           
           {error && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 p-4">
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 overflow-auto">
               <Alert className="bg-red-50 border-red-200 w-full">
                 <AlertDescription className="text-sm text-red-800">
                   {error}
-                  <div className="mt-2">
-                    <Button 
-                      onClick={handleOpenExternal} 
-                      className="w-full flex items-center justify-center gap-2"
-                    >
-                      <ExternalLink size={16} />
-                      <span>Open in new tab instead</span>
-                    </Button>
-                  </div>
                 </AlertDescription>
               </Alert>
+              
+              <div className="mt-6 w-full max-w-md space-y-4">
+                <div className="text-center">
+                  <h3 className="font-medium">Alternative options:</h3>
+                </div>
+                
+                <Button 
+                  onClick={handleOpenExternal} 
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <ExternalLink size={16} />
+                  <span>Open in new tab</span>
+                </Button>
+                
+                <Button 
+                  onClick={copyLinkToClipboard} 
+                  variant="outline"
+                  className="w-full"
+                >
+                  Copy link to clipboard
+                </Button>
+                
+                <div className="text-sm text-gray-600 text-center mt-2">
+                  <p>Google Forms typically require authentication and don't allow embedding due to security restrictions.</p>
+                </div>
+              </div>
             </div>
           )}
           
@@ -145,7 +192,7 @@ const FormIframe: React.FC<FormIframeProps> = ({ open, onOpenChange, formUrl, ti
             onLoad={handleIframeLoad}
             onError={handleIframeError}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-storage-access-by-user-activation"
           />
         </div>
       </DialogContent>

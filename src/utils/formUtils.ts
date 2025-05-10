@@ -1,4 +1,3 @@
-
 import { GoogleFormConfig, UserSettings, Task } from "../types/task";
 import { toast } from "sonner";
 
@@ -34,42 +33,56 @@ export const detectFormFields = async (formUrl: string): Promise<GoogleFormConfi
       throw new Error("Invalid Google Form URL");
     }
     
-    // Attempt to access the form using a CORS proxy
-    // Note: This might still fail due to CORS restrictions
-    const proxyUrl = `https://cors-anywhere.herokuapp.com/${formUrl}`;
-    
+    // Direct CORS requests to Google Forms typically fail
+    // We inform the user about the limitation
     toast("Detecting form fields...", {
-      description: "This may take a moment.",
+      description: "Note: Automatic field detection may not work due to Google security restrictions.",
     });
     
-    const response = await fetch(proxyUrl, {
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
+    // Try to use a CORS proxy service
+    // This still might fail due to Google's strict security
+    try {
+      const proxyUrl = `https://cors-anywhere.herokuapp.com/${formUrl}`;
+      
+      const response = await fetch(proxyUrl, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch form data");
       }
-    });
-    
-    if (!response.ok) {
-      throw new Error("Failed to fetch form data");
+      
+      const html = await response.text();
+      const fields = extractFieldsFromFormHtml(html);
+      
+      return {
+        url: formUrl,
+        fields: fields
+      };
+    } catch (error) {
+      console.error("Error detecting form fields:", error);
+      
+      // Fall back to default field IDs
+      return {
+        url: formUrl,
+        fields: DEFAULT_FORM_FIELDS
+      };
     }
-    
-    const html = await response.text();
-    
-    // Extract field IDs using regex patterns
-    const fields = extractFieldsFromFormHtml(html);
-    
-    return {
-      url: formUrl,
-      fields: fields
-    };
     
   } catch (error) {
     console.error("Error detecting form fields:", error);
     
     toast("Field detection failed", {
-      description: "Please enter field IDs manually or try again later.",
+      description: "Using default field IDs. Please update them manually if needed.",
     });
     
-    return null;
+    // Return default field configuration as fallback
+    return {
+      url: formUrl,
+      fields: { ...DEFAULT_FORM_FIELDS }
+    };
   }
 };
 
@@ -122,9 +135,17 @@ export const createFormPrefillUrl = (
     const formattedDate = `${today.getDate().toString().padStart(2, '0')}/${
       (today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
     
-    // Extract the base form URL without any existing parameters
-    // Make sure to remove the /viewform part if it exists and replace with /formResponse
+    // Extract the base form URL and ensure it's correctly formatted for prefill URLs
     let baseFormUrl = formConfig.url.split('?')[0];
+    
+    // Make sure we're using the right endpoint for Google Form prefills
+    // Remove any trailing slashes
+    baseFormUrl = baseFormUrl.replace(/\/$/, '');
+    
+    // If URL is just domain.com/forms/d/e/FORM_ID, append /formResponse
+    if (!baseFormUrl.includes('/formResponse') && !baseFormUrl.includes('/viewform')) {
+      baseFormUrl += '/formResponse';
+    }
     
     // If URL has /viewform, replace it with /formResponse for prefill to work properly
     if (baseFormUrl.endsWith('/viewform')) {
