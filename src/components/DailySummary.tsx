@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { DailyTasks, Task } from '@/types/task';
+import { DailyTasks } from '@/types/task';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   CheckIcon, 
@@ -9,24 +10,15 @@ import {
   ListCheckIcon, 
   Settings, 
   Loader2,
-  Search,
   FileText,
-  Link
 } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
 import { useTasks } from '@/hooks/useTasks';
-import { useForm } from "react-hook-form";
-import FormIframe from './FormIframe';
-import { 
-  createFormPrefillUrl,
-  isValidGoogleFormUrl
-} from '@/utils/formUtils';
 
 interface DailySummaryProps {
   dailyHistory: DailyTasks[];
@@ -36,20 +28,17 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
   const { 
     userName, 
     userSettings, 
-    saveSettings,
     openSetupWizard,
-    getTasksSummary
+    getTasksSummary,
+    fillForm
   } = useTasks();
   
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [showFieldsConfig, setShowFieldsConfig] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedClient, setSelectedClient] = useState('');
   const [timeSpent, setTimeSpent] = useState('0.25');
   const [githubIssue, setGithubIssue] = useState('');
-  const [showFormIframe, setShowFormIframe] = useState(false);
-  const [formPrefillUrl, setFormPrefillUrl] = useState('');
   
   const selectedDayTasks = dailyHistory.find(day => day.date === selectedDate);
   
@@ -59,11 +48,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
       // Set default client if available
       if (userSettings.defaultClient) {
         setSelectedClient(userSettings.defaultClient);
-      }
-      
-      // Set default time spent if available
-      if (userSettings.defaultTimeSpent) {
-        setTimeSpent(userSettings.defaultTimeSpent);
       }
       
       // Apply static values from settings if available
@@ -77,7 +61,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
         
         // Apply time static value if configured
         if (staticValues.time?.isStatic) {
-          setTimeSpent(staticValues.time.value || userSettings.defaultTimeSpent || '0.25');
+          setTimeSpent(staticValues.time.value || '0.25');
         }
         
         // Apply GitHub issue static value if configured
@@ -92,7 +76,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  const handleSendToForm = () => {
+  const handleFillForm = async () => {
     if (!userSettings?.formConfig?.url || !selectedDayTasks) {
       toast("Missing form configuration", {
         description: "Please set up your Google Form first.",
@@ -112,43 +96,21 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
     setIsSubmitting(true);
     
     try {
-      // Get summary text
-      const tasksDescription = getTasksSummary(selectedDayTasks.tasks);
-      
-      // Create prefill URL
-      const prefillUrl = createFormPrefillUrl(
-        userSettings.formConfig,
-        tasksDescription,
-        userName,
+      // Use the fillForm function from useTasks
+      const result = await fillForm(
+        selectedDate!,
         selectedClient,
         timeSpent,
         githubIssue
       );
       
-      if (prefillUrl) {
-        setFormPrefillUrl(prefillUrl);
-        
-        // Show success message
-        toast("Form ready", {
-          description: "Your form has been prepared with your task data.",
-        });
-        
-        // Open the form dialog with options
-        setShowFormIframe(true);
+      if (result) {
         setShowExportDialog(false);
-        setIsSubmitting(false);
-      } else {
-        // Show error message
-        toast("Error creating form link", {
-          description: "Could not create a link to your Google Form. Please check the URL.",
-        });
-        setIsSubmitting(false);
       }
     } catch (error) {
       console.error('Error in form submission:', error);
-      toast("Error", {
-        description: "Failed to prepare the form submission. Please try again.",
-      });
+      toast.error("Failed to prepare form filling");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -162,12 +124,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
     toast("Copied!", {
       description: "Summary copied to clipboard",
     });
-  };
-
-  // Handle form iframe close
-  const handleFormIframeClose = () => {
-    setShowFormIframe(false);
-    setFormPrefillUrl('');
   };
 
   return (
@@ -263,8 +219,8 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                     className="flex-1 bg-cheer-blue hover:bg-cheer-blue/90 flex items-center gap-2"
                     onClick={() => setShowExportDialog(true)}
                   >
-                    <Link size={16} />
-                    <span>Export to Google Form</span>
+                    <ExternalLink size={16} />
+                    <span>Fill Google Form</span>
                   </Button>
                 </div>
               </div>
@@ -277,12 +233,12 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Export to Google Form</DialogTitle>
+            <DialogTitle>Fill Google Form</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <Alert className="bg-blue-50 border-blue-200">
               <AlertDescription className="text-sm text-blue-800">
-                Prepare to submit your tasks to Google Form with today's date.
+                Prepare to fill your Google Form with today's tasks. The extension will open the form in a new tab and auto-fill it.
               </AlertDescription>
             </Alert>
             
@@ -363,7 +319,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
                 
                 {/* Submit button */}
                 <Button
-                  onClick={handleSendToForm}
+                  onClick={handleFillForm}
                   className="w-full bg-cheer-blue hover:bg-cheer-blue/90 flex gap-2 items-center justify-center"
                   disabled={isSubmitting}
                 >
@@ -381,14 +337,6 @@ const DailySummary: React.FC<DailySummaryProps> = ({ dailyHistory }) => {
           </div>
         </DialogContent>
       </Dialog>
-      
-      {/* Form Options Dialog */}
-      <FormIframe 
-        open={showFormIframe}
-        onOpenChange={handleFormIframeClose}
-        formUrl={formPrefillUrl}
-        title="Submit Daily Tasks"
-      />
     </>
   );
 };

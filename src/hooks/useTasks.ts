@@ -2,15 +2,15 @@
 import { useState, useEffect } from 'react';
 import { Task, TaskState, UserSettings, GoogleFormConfig, StaticFieldValues } from '../types/task';
 import { 
-  loadFromLocalStorage, 
-  saveToLocalStorage, 
+  loadFromChromeStorage, 
+  saveToChromeStorage, 
   addTask as addTaskToStorage,
   clearTasksForToday,
   getCurrentTimeBlock,
   saveUserSettings,
   loadUserSettings,
   isSetupComplete
-} from '../utils/storage';
+} from '../utils/chromeStorage';
 import { DEFAULT_FORM_FIELDS, formatTasksAsSummary } from '../utils/formUtils';
 import { toast } from 'sonner';
 
@@ -31,32 +31,31 @@ export const useTasks = () => {
 
   // Load tasks and user settings on initial render
   useEffect(() => {
-    const loadTasks = () => {
-      const data = loadFromLocalStorage();
-      setTaskState(data);
-      
-      // Load user name if available
-      const savedUserName = localStorage.getItem('daily-cheer-user-name');
-      if (savedUserName) {
-        setUserName(savedUserName);
-      }
-      
-      // Load user settings
-      const settings = loadUserSettings();
-      if (settings) {
-        setUserSettings(settings);
+    const loadTasks = async () => {
+      try {
+        const data = await loadFromChromeStorage();
+        setTaskState(data);
         
-        // If settings include userName, use it
-        if (settings.userName) {
-          setUserName(settings.userName);
+        // Load user settings
+        const settings = await loadUserSettings();
+        if (settings) {
+          setUserSettings(settings);
+          
+          // If settings include userName, use it
+          if (settings.userName) {
+            setUserName(settings.userName);
+          }
         }
+        
+        // Check if setup is complete
+        const setupDone = await isSetupComplete();
+        setShowSetupWizard(!setupDone);
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setLoading(false);
       }
-      
-      // Check if setup is complete
-      const setupDone = isSetupComplete();
-      setShowSetupWizard(!setupDone);
-      
-      setLoading(false);
     };
     loadTasks();
   }, []);
@@ -85,7 +84,7 @@ export const useTasks = () => {
   }, [currentTimeBlock, lastPromptedTimeBlock]);
   
   // Add a new task
-  const addTask = (text: string, client?: string, githubIssue?: string) => {
+  const addTask = async (text: string, client?: string, githubIssue?: string) => {
     if (!text.trim()) return;
     
     const newTask: Task = {
@@ -97,38 +96,46 @@ export const useTasks = () => {
       githubIssue: githubIssue
     };
     
-    const updatedState = addTaskToStorage(newTask);
-    setTaskState(updatedState);
-    setLastPromptedTimeBlock(currentTimeBlock);
-    setShowPrompt(false);
+    try {
+      const updatedState = await addTaskToStorage(newTask);
+      setTaskState(updatedState);
+      setLastPromptedTimeBlock(currentTimeBlock);
+      setShowPrompt(false);
 
-    toast("Task added!", {
-      description: "Keep up the great work!",
-    });
-    
-    return newTask;
+      toast("Task added!", {
+        description: "Keep up the great work!",
+      });
+      
+      return newTask;
+    } catch (error) {
+      console.error('Error adding task:', error);
+      toast.error("Failed to add task");
+    }
   };
 
   // Set user name
-  const setUser = (name: string) => {
+  const setUser = async (name: string) => {
     setUserName(name);
-    localStorage.setItem('daily-cheer-user-name', name);
     
-    // Also update taskState with userName
-    const updatedState = { ...taskState, userName: name };
-    setTaskState(updatedState);
-    saveToLocalStorage(updatedState);
+    try {
+      // Also update taskState with userName
+      const updatedState = { ...taskState, userName: name };
+      setTaskState(updatedState);
+      await saveToChromeStorage(updatedState);
+    } catch (error) {
+      console.error('Error setting user name:', error);
+    }
   };
 
   // Save user settings
-  const saveSettings = (settings: UserSettings) => {
+  const saveSettings = async (settings: UserSettings) => {
     const updatedSettings = {
       ...settings,
       userName: settings.userName || userName
     };
     
     setUserSettings(updatedSettings);
-    saveUserSettings(updatedSettings);
+    await saveUserSettings(updatedSettings);
     
     // Update userName if provided in settings
     if (settings.userName) {
@@ -138,13 +145,13 @@ export const useTasks = () => {
     // Update taskState with user settings
     const updatedState = { ...taskState, userSettings: updatedSettings, userName: updatedSettings.userName };
     setTaskState(updatedState);
-    saveToLocalStorage(updatedState);
+    await saveToChromeStorage(updatedState);
     
     return updatedState;
   };
 
   // Complete setup wizard
-  const completeSetup = (settings: UserSettings) => {
+  const completeSetup = async (settings: UserSettings) => {
     setShowSetupWizard(false);
     return saveSettings({
       ...settings,
@@ -153,9 +160,10 @@ export const useTasks = () => {
   };
 
   // Close setup wizard without completing
-  const closeSetupWizard = () => {
+  const closeSetupWizard = async () => {
     // If user has already completed setup before, just close it
-    if (isSetupComplete()) {
+    const setupDone = await isSetupComplete();
+    if (setupDone) {
       setShowSetupWizard(false);
     } else {
       // If this is initial setup, show a warning
@@ -172,15 +180,20 @@ export const useTasks = () => {
   };
 
   // Clear tasks and store them in history
-  const finalizeDayTasks = () => {
-    const updatedState = clearTasksForToday();
-    setTaskState(updatedState);
-    
-    toast("Day finalized!", {
-      description: "Your tasks have been saved to history.",
-    });
-    
-    return updatedState;
+  const finalizeDayTasks = async () => {
+    try {
+      const updatedState = await clearTasksForToday();
+      setTaskState(updatedState);
+      
+      toast("Day finalized!", {
+        description: "Your tasks have been saved to history.",
+      });
+      
+      return updatedState;
+    } catch (error) {
+      console.error('Error finalizing day tasks:', error);
+      toast.error("Failed to finalize day");
+    }
   };
 
   // Mark prompt as responded to without adding a task
@@ -192,6 +205,39 @@ export const useTasks = () => {
   // Open setup wizard
   const openSetupWizard = () => {
     setShowSetupWizard(true);
+  };
+
+  // Fill a Google Form with data
+  const fillForm = async (date: string, client: string, timeSpent: string, githubIssue: string) => {
+    if (!userSettings?.formConfig?.url) {
+      toast.error("Missing form configuration");
+      return false;
+    }
+
+    try {
+      // Send message to background script to handle form filling
+      chrome.runtime.sendMessage({
+        action: 'fillForm',
+        date,
+        formConfig: userSettings.formConfig,
+        userName,
+        client,
+        timeSpent,
+        githubIssue
+      }, response => {
+        if (response && response.success) {
+          toast.success("Form opened in new tab");
+        } else {
+          toast.error(`Failed to fill form: ${response?.error || 'Unknown error'}`);
+        }
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error filling form:', error);
+      toast.error("Failed to communicate with extension");
+      return false;
+    }
   };
 
   return {
@@ -211,6 +257,7 @@ export const useTasks = () => {
     completeSetup,
     closeSetupWizard,
     openSetupWizard,
-    getTasksSummary
+    getTasksSummary,
+    fillForm
   };
 };
