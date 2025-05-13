@@ -1,143 +1,97 @@
 
-// Content script for the Daily Cheer Tracker extension
-// This script runs on Google Form pages to handle auto-filling
+console.log("Daily Cheer Tracker content script loaded");
 
-console.log('Daily Cheer Tracker content script loaded');
+// Check if we're running in a Chrome extension environment
+const isChromeExtension = (): boolean => {
+  return typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined';
+};
 
-// Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'autofillForm') {
-    fillFormWithData(message.data)
-      .then(result => sendResponse(result))
-      .catch(error => sendResponse({ success: false, error: error.message }));
-    return true; // Indicates async response
-  }
-});
+// Only add listeners if we're in an extension environment
+if (isChromeExtension()) {
+  // Listen for messages from the background script
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'autofillForm') {
+      handleFormAutofill(message.data);
+      sendResponse({ success: true });
+    }
+    return true;
+  });
+}
 
-// Fill the form with the provided data
-async function fillFormWithData(data: {
-  userName: string;
-  date: string;
-  client: string;
-  timeSpent: string;
-  tasksDescription: string;
-  githubIssue: string;
-}) {
-  console.log('Attempting to fill form with data:', data);
+// Function to handle auto-filling Google Form
+function handleFormAutofill(data: any) {
+  console.log("Auto-filling form with data:", data);
   
   try {
-    // Give the form a moment to fully load
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Get all input fields on the page
-    const inputFields = document.querySelectorAll('input, textarea');
-    console.log(`Found ${inputFields.length} input fields on the page`);
-    
-    // For each field, try to identify what it is and fill it
-    inputFields.forEach(field => {
-      // Get field name attributes and other identifying info
-      const ariaLabel = field.getAttribute('aria-label')?.toLowerCase() || '';
-      const name = field.getAttribute('name')?.toLowerCase() || '';
-      const id = field.getAttribute('id')?.toLowerCase() || '';
-      const placeholder = (field as HTMLInputElement).placeholder?.toLowerCase() || '';
+    // Give the form a moment to fully render
+    setTimeout(() => {
+      // Find and fill form fields
+      const formInputs = document.querySelectorAll('input[type="text"], textarea');
       
-      console.log(`Processing field: ${name} (${ariaLabel})`);
+      formInputs.forEach((input: Element) => {
+        const inputElement = input as HTMLInputElement | HTMLTextAreaElement;
+        const inputId = inputElement.id || '';
+        const ariaLabel = inputElement.getAttribute('aria-label')?.toLowerCase() || '';
+        
+        // Try to match inputs with our data
+        if (inputId.includes('entry.') || ariaLabel) {
+          // Check for name field
+          if (ariaLabel.includes('name') && data.userName) {
+            inputElement.value = data.userName;
+            simulateInputEvent(inputElement);
+          }
+          
+          // Check for date field
+          else if (ariaLabel.includes('date') && data.date) {
+            inputElement.value = data.date;
+            simulateInputEvent(inputElement);
+          }
+          
+          // Check for client field
+          else if (ariaLabel.includes('client') && data.client) {
+            inputElement.value = data.client;
+            simulateInputEvent(inputElement);
+          }
+          
+          // Check for time field
+          else if ((ariaLabel.includes('time') || ariaLabel.includes('hours')) && data.timeSpent) {
+            inputElement.value = data.timeSpent;
+            simulateInputEvent(inputElement);
+          }
+          
+          // Check for description field
+          else if ((ariaLabel.includes('description') || ariaLabel.includes('task') || 
+                   ariaLabel.includes('summary')) && data.tasksDescription) {
+            inputElement.value = data.tasksDescription;
+            simulateInputEvent(inputElement);
+          }
+          
+          // Check for GitHub issue field
+          else if ((ariaLabel.includes('github') || ariaLabel.includes('issue')) && data.githubIssue) {
+            inputElement.value = data.githubIssue;
+            simulateInputEvent(inputElement);
+          }
+        }
+      });
       
-      // Try to identify field type and fill accordingly
-      if (name.includes('entry.')) {
-        // This is a Google Form field, let's try to identify it
-        
-        // Name field detection
-        if (ariaLabel.includes('name') || ariaLabel.includes('your name')) {
-          (field as HTMLInputElement).value = data.userName;
-          simulateUserInput(field as HTMLInputElement);
-          console.log('Filled name field:', data.userName);
-        }
-        
-        // Date field detection
-        else if (ariaLabel.includes('date') || ariaLabel.includes('day')) {
-          (field as HTMLInputElement).value = data.date;
-          simulateUserInput(field as HTMLInputElement);
-          console.log('Filled date field:', data.date);
-        }
-        
-        // Client field detection
-        else if (ariaLabel.includes('client') || ariaLabel.includes('project')) {
-          (field as HTMLInputElement).value = data.client;
-          simulateUserInput(field as HTMLInputElement);
-          console.log('Filled client field:', data.client);
-        }
-        
-        // Time field detection
-        else if (ariaLabel.includes('time') || ariaLabel.includes('hours') || ariaLabel.includes('duration')) {
-          (field as HTMLInputElement).value = data.timeSpent;
-          simulateUserInput(field as HTMLInputElement);
-          console.log('Filled time field:', data.timeSpent);
-        }
-        
-        // Description field detection
-        else if (ariaLabel.includes('description') || ariaLabel.includes('details') || 
-                ariaLabel.includes('summary') || field instanceof HTMLTextAreaElement) {
-          (field as HTMLInputElement).value = data.tasksDescription;
-          simulateUserInput(field as HTMLInputElement);
-          console.log('Filled description field');
-        }
-        
-        // GitHub issue field detection
-        else if (ariaLabel.includes('github') || ariaLabel.includes('issue') || 
-                ariaLabel.includes('ticket')) {
-          (field as HTMLInputElement).value = data.githubIssue;
-          simulateUserInput(field as HTMLInputElement);
-          console.log('Filled GitHub issue field:', data.githubIssue);
-        }
-      }
-    });
-    
-    // Show success notification to the user
-    showNotification('Successfully filled the form! Please review before submitting.');
-    
-    return { success: true };
+      console.log("Form auto-fill complete");
+      
+      // Alternative approach using known field IDs would be implemented here
+      // if the above generic approach doesn't work well
+      
+    }, 1000);
   } catch (error) {
-    console.error('Error filling form:', error);
-    showNotification('Error filling form. Please try manual entry.', true);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    console.error("Error auto-filling form:", error);
   }
 }
 
-// Helper to simulate user input to trigger any event listeners on the form
-function simulateUserInput(element: HTMLInputElement | HTMLTextAreaElement) {
-  element.focus();
-  element.dispatchEvent(new Event('input', { bubbles: true }));
-  element.dispatchEvent(new Event('change', { bubbles: true }));
-  element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
-  element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
-  element.blur();
+// Helper function to simulate user input to trigger form validation
+function simulateInputEvent(element: HTMLElement) {
+  const event = new Event('input', { bubbles: true });
+  element.dispatchEvent(event);
+  const changeEvent = new Event('change', { bubbles: true });
+  element.dispatchEvent(changeEvent);
 }
 
-// Helper to show a notification to the user
-function showNotification(message: string, isError: boolean = false) {
-  // Create notification element
-  const notification = document.createElement('div');
-  notification.style.position = 'fixed';
-  notification.style.top = '20px';
-  notification.style.right = '20px';
-  notification.style.padding = '10px 20px';
-  notification.style.borderRadius = '8px';
-  notification.style.zIndex = '9999';
-  notification.style.backgroundColor = isError ? '#f44336' : '#4CAF50';
-  notification.style.color = 'white';
-  notification.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-  notification.style.fontSize = '14px';
-  notification.style.maxWidth = '300px';
-  notification.style.transition = 'opacity 0.5s';
-  notification.textContent = message;
-  
-  // Add to document
-  document.body.appendChild(notification);
-  
-  // Remove after a few seconds
-  setTimeout(() => {
-    notification.style.opacity = '0';
-    setTimeout(() => document.body.removeChild(notification), 500);
-  }, 5000);
-}
+// Export functions for testing in browser environment
+export { handleFormAutofill };

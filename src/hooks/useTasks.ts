@@ -14,6 +14,11 @@ import {
 import { DEFAULT_FORM_FIELDS, formatTasksAsSummary } from '../utils/formUtils';
 import { toast } from 'sonner';
 
+// Helper function to check if we're running in a Chrome extension environment
+const isChromeExtension = (): boolean => {
+  return typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined';
+};
+
 export const useTasks = () => {
   const [taskState, setTaskState] = useState<TaskState>({ tasks: [], dailyHistory: [] });
   const [loading, setLoading] = useState(true);
@@ -215,22 +220,59 @@ export const useTasks = () => {
     }
 
     try {
-      // Send message to background script to handle form filling
-      chrome.runtime.sendMessage({
-        action: 'fillForm',
-        date,
-        formConfig: userSettings.formConfig,
-        userName,
-        client,
-        timeSpent,
-        githubIssue
-      }, response => {
-        if (response && response.success) {
-          toast.success("Form opened in new tab");
-        } else {
-          toast.error(`Failed to fill form: ${response?.error || 'Unknown error'}`);
+      // If in extension environment, send message to background script
+      if (isChromeExtension()) {
+        // Send message to background script to handle form filling
+        chrome.runtime.sendMessage({
+          action: 'fillForm',
+          date,
+          formConfig: userSettings.formConfig,
+          userName,
+          client,
+          timeSpent,
+          githubIssue
+        }, response => {
+          if (response && response.success) {
+            toast.success("Form opened in new tab");
+          } else {
+            toast.error(`Failed to fill form: ${response?.error || 'Unknown error'}`);
+          }
+        });
+      } else {
+        // In browser environment, use direct form filling
+        const taskState = await loadFromChromeStorage();
+        const selectedDay = taskState.dailyHistory.find(day => day.date === date);
+        
+        if (!selectedDay) {
+          toast.error("No tasks found for the selected date");
+          return false;
         }
-      });
+        
+        // Format tasks
+        const tasksDescription = getTasksSummary(selectedDay.tasks);
+        
+        // Import formUtils functions
+        const { createFormPrefillUrl } = await import('../utils/formUtils');
+        
+        // Create the form URL with prefilled data
+        const formUrl = createFormPrefillUrl(
+          userSettings.formConfig,
+          tasksDescription,
+          userName,
+          client,
+          timeSpent,
+          githubIssue
+        );
+        
+        if (!formUrl) {
+          toast.error("Failed to create form URL");
+          return false;
+        }
+        
+        // Open the URL in a new tab
+        window.open(formUrl, '_blank');
+        toast.success("Form opened in new tab");
+      }
       
       return true;
     } catch (error) {

@@ -3,15 +3,22 @@
 import { loadFromChromeStorage } from './utils/chromeStorage';
 import { createFormPrefillUrl } from './utils/formUtils';
 
+// Check if we're running in a Chrome extension environment
+const isChromeExtension = (): boolean => {
+  return typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined';
+};
+
 // Listen for messages from the popup or content scripts
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'fillForm') {
-    handleFormFill(message.date, message.formConfig, message.userName, message.client, message.timeSpent, message.githubIssue)
-      .then(result => sendResponse(result))
-      .catch(error => sendResponse({ success: false, error: error.message }));
-    return true; // Indicates async response
-  }
-});
+if (isChromeExtension()) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'fillForm') {
+      handleFormFill(message.date, message.formConfig, message.userName, message.client, message.timeSpent, message.githubIssue)
+        .then(result => sendResponse(result))
+        .catch(error => sendResponse({ success: false, error: error.message }));
+      return true; // Indicates async response
+    }
+  });
+}
 
 // Handle form filling request
 async function handleFormFill(date: string, formConfig: any, userName: string, client: string, timeSpent: string, githubIssue: string) {
@@ -42,29 +49,36 @@ async function handleFormFill(date: string, formConfig: any, userName: string, c
       return { success: false, error: 'Failed to create form URL' };
     }
 
-    // Open the form in a new tab
-    chrome.tabs.create({ url: formUrl }, (tab) => {
-      // After the tab is created, we'll send a message to the content script
-      // to fill the form when it's loaded
-      chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
-        if (info.status === 'complete' && tabId === tab.id) {
-          chrome.tabs.onUpdated.removeListener(listener);
-          
-          // Send message to the content script to fill the form
-          chrome.tabs.sendMessage(tabId, {
-            action: 'autofillForm',
-            data: {
-              userName,
-              date: new Date().toLocaleDateString(),
-              client,
-              timeSpent,
-              tasksDescription,
-              githubIssue
-            }
-          });
-        }
+    // Only proceed with opening tabs if in extension environment
+    if (isChromeExtension()) {
+      // Open the form in a new tab
+      chrome.tabs.create({ url: formUrl }, (tab) => {
+        // After the tab is created, we'll send a message to the content script
+        // to fill the form when it's loaded
+        chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
+          if (info.status === 'complete' && tabId === tab.id) {
+            chrome.tabs.onUpdated.removeListener(listener);
+            
+            // Send message to the content script to fill the form
+            chrome.tabs.sendMessage(tabId, {
+              action: 'autofillForm',
+              data: {
+                userName,
+                date: new Date().toLocaleDateString(),
+                client,
+                timeSpent,
+                tasksDescription,
+                githubIssue
+              }
+            });
+          }
+        });
       });
-    });
+    } else {
+      // In browser environment, just return the URL
+      console.log('Form URL generated (would open in extension mode):', formUrl);
+      window.open(formUrl, '_blank');
+    }
 
     return { success: true };
   } catch (error) {

@@ -1,17 +1,28 @@
 
-import { Task, DailyTasks, TaskState, UserSettings } from "../types/task";
+import { Task, DailyTasks, TaskState, UserSettings, GoogleFormConfig, StaticFieldValues } from '../types/task';
 
 const STORAGE_KEY = 'daily-cheer-tracker-data';
 const USER_SETTINGS_KEY = 'daily-cheer-user-settings';
 const SETUP_COMPLETE_KEY = 'daily-cheer-setup-complete';
 
+// Helper function to check if we're running in a Chrome extension environment
+const isChromeExtension = (): boolean => {
+  return typeof chrome !== 'undefined' && typeof chrome.storage !== 'undefined';
+};
+
 // Save task state to Chrome storage
 export const saveToChromeStorage = async (data: TaskState): Promise<void> => {
   try {
-    await chrome.storage.local.set({ [STORAGE_KEY]: data });
+    if (isChromeExtension()) {
+      // Running as Chrome extension
+      await chrome.storage.local.set({ [STORAGE_KEY]: data });
+    } else {
+      // Fallback to localStorage for development purposes
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
   } catch (error) {
-    console.error('Error saving to Chrome storage:', error);
-    // Fallback to localStorage for development purposes or when running in browser
+    console.error('Error saving to storage:', error);
+    // Try fallback if primary method fails
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (localError) {
@@ -23,23 +34,24 @@ export const saveToChromeStorage = async (data: TaskState): Promise<void> => {
 // Load task state from Chrome storage
 export const loadFromChromeStorage = async (): Promise<TaskState> => {
   try {
-    const result = await chrome.storage.local.get([STORAGE_KEY]);
-    if (result[STORAGE_KEY]) {
-      return result[STORAGE_KEY] as TaskState;
+    if (isChromeExtension()) {
+      // Running as Chrome extension
+      const result = await chrome.storage.local.get([STORAGE_KEY]);
+      if (result[STORAGE_KEY]) {
+        return result[STORAGE_KEY] as TaskState;
+      }
     }
     
     // Try fallback to localStorage
     const localData = localStorage.getItem(STORAGE_KEY);
     if (localData) {
       const parsedData = JSON.parse(localData);
-      // Store it in chrome.storage for future use
-      await saveToChromeStorage(parsedData);
       return parsedData;
     }
     
     return { tasks: [], dailyHistory: [] };
   } catch (error) {
-    console.error('Error loading from Chrome storage:', error);
+    console.error('Error loading from storage:', error);
     
     // Fallback to localStorage
     try {
@@ -58,16 +70,27 @@ export const loadFromChromeStorage = async (): Promise<TaskState> => {
 // Save user settings to Chrome storage
 export const saveUserSettings = async (settings: UserSettings): Promise<void> => {
   try {
-    await chrome.storage.local.set({ [USER_SETTINGS_KEY]: settings });
-    
-    // Also save setup complete flag separately for quick access
-    if (settings.setupComplete) {
-      await chrome.storage.local.set({ [SETUP_COMPLETE_KEY]: true });
-    } else if (settings.setupComplete === false) {
-      await chrome.storage.local.remove([SETUP_COMPLETE_KEY]);
+    if (isChromeExtension()) {
+      // Running as Chrome extension
+      await chrome.storage.local.set({ [USER_SETTINGS_KEY]: settings });
+      
+      // Also save setup complete flag separately for quick access
+      if (settings.setupComplete) {
+        await chrome.storage.local.set({ [SETUP_COMPLETE_KEY]: true });
+      } else if (settings.setupComplete === false) {
+        await chrome.storage.local.remove([SETUP_COMPLETE_KEY]);
+      }
+    } else {
+      // Fallback to localStorage for development
+      localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
+      if (settings.setupComplete) {
+        localStorage.setItem(SETUP_COMPLETE_KEY, 'true');
+      } else if (settings.setupComplete === false) {
+        localStorage.removeItem(SETUP_COMPLETE_KEY);
+      }
     }
   } catch (error) {
-    console.error('Error saving user settings to Chrome storage:', error);
+    console.error('Error saving user settings to storage:', error);
     
     // Fallback to localStorage for development
     try {
@@ -86,9 +109,12 @@ export const saveUserSettings = async (settings: UserSettings): Promise<void> =>
 // Load user settings from Chrome storage
 export const loadUserSettings = async (): Promise<UserSettings | null> => {
   try {
-    const result = await chrome.storage.local.get([USER_SETTINGS_KEY]);
-    if (result[USER_SETTINGS_KEY]) {
-      return result[USER_SETTINGS_KEY] as UserSettings;
+    if (isChromeExtension()) {
+      // Running as Chrome extension
+      const result = await chrome.storage.local.get([USER_SETTINGS_KEY]);
+      if (result[USER_SETTINGS_KEY]) {
+        return result[USER_SETTINGS_KEY] as UserSettings;
+      }
     }
     
     // Try fallback to localStorage
@@ -99,7 +125,7 @@ export const loadUserSettings = async (): Promise<UserSettings | null> => {
     
     return null;
   } catch (error) {
-    console.error('Error loading user settings from Chrome storage:', error);
+    console.error('Error loading user settings from storage:', error);
     
     // Fallback to localStorage
     try {
@@ -118,8 +144,14 @@ export const loadUserSettings = async (): Promise<UserSettings | null> => {
 // Check if setup is complete
 export const isSetupComplete = async (): Promise<boolean> => {
   try {
-    const result = await chrome.storage.local.get([SETUP_COMPLETE_KEY]);
-    return result[SETUP_COMPLETE_KEY] === true;
+    if (isChromeExtension()) {
+      // Running as Chrome extension
+      const result = await chrome.storage.local.get([SETUP_COMPLETE_KEY]);
+      return result[SETUP_COMPLETE_KEY] === true;
+    }
+    
+    // Fallback to localStorage
+    return localStorage.getItem(SETUP_COMPLETE_KEY) === 'true';
   } catch (error) {
     console.error('Error checking setup complete status:', error);
     
@@ -131,11 +163,23 @@ export const isSetupComplete = async (): Promise<boolean> => {
 // Reset setup status
 export const resetSetup = async (): Promise<void> => {
   try {
-    await chrome.storage.local.remove([SETUP_COMPLETE_KEY]);
-    const settings = await loadUserSettings();
-    if (settings) {
-      settings.setupComplete = false;
-      await saveUserSettings(settings);
+    if (isChromeExtension()) {
+      // Running as Chrome extension
+      await chrome.storage.local.remove([SETUP_COMPLETE_KEY]);
+      const settings = await loadUserSettings();
+      if (settings) {
+        settings.setupComplete = false;
+        await saveUserSettings(settings);
+      }
+    } else {
+      // Fallback to localStorage
+      localStorage.removeItem(SETUP_COMPLETE_KEY);
+      const settingsStr = localStorage.getItem(USER_SETTINGS_KEY);
+      if (settingsStr) {
+        const settings = JSON.parse(settingsStr);
+        settings.setupComplete = false;
+        localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
+      }
     }
   } catch (error) {
     console.error('Error resetting setup:', error);
