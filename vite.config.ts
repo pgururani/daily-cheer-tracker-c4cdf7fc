@@ -5,6 +5,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { readFileSync } from "fs";
 import { resolve } from "path";
+import type { Connect } from 'vite';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -14,7 +15,7 @@ export default defineConfig(({ mode }) => ({
     hmr: true,
     // Configure middlewares to handle CSP in development
     middlewares: [
-      function(req, res, next) {
+      function(req: Connect.IncomingMessage, res: Connect.ServerResponse, next: Connect.NextFunction) {
         res.setHeader("Content-Security-Policy", 
           "script-src 'self' https://cdn.gpteng.co 'unsafe-inline' 'unsafe-eval'");
         next();
