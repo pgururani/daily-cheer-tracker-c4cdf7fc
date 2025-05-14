@@ -11,6 +11,15 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    hmr: true,
+    // Configure middlewares to handle CSP in development
+    middlewares: [
+      function(req, res, next) {
+        res.setHeader("Content-Security-Policy", 
+          "script-src 'self' https://cdn.gpteng.co 'unsafe-inline' 'unsafe-eval'");
+        next();
+      }
+    ]
   },
   plugins: [
     react(),
