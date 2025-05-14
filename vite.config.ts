@@ -22,6 +22,18 @@ export default defineConfig(({ mode }) => ({
       }
     ]
   },
+  preview: {
+    port: 5173,
+    open: true,
+    // Add CSP header for preview mode too
+    middlewares: [
+      function(req: Connect.IncomingMessage, res: any, next: Connect.NextFunction) {
+        res.setHeader("Content-Security-Policy", 
+          "script-src 'self' https://cdn.gpteng.co 'unsafe-inline' 'unsafe-eval'");
+        next();
+      }
+    ]
+  },
   plugins: [
     react(),
     mode === 'development' &&
