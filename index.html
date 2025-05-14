@@ -23,8 +23,32 @@
 
   <body>
     <div id="root"></div>
-    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <!-- Load gptengineer.js with fallback -->
+    <script>
+      // Create a fallback function in case the external script isn't loaded
+      window.gptEngineerLoaded = false;
+      window.onGptEngineLoaded = function() {
+        window.gptEngineerLoaded = true;
+        console.log("GPT Engineer script loaded successfully");
+      };
+      
+      // Try to load the external script with fallback
+      function loadExternalScript() {
+        var script = document.createElement('script');
+        script.src = "https://cdn.gpteng.co/gptengineer.js";
+        script.type = "module";
+        script.onload = function() {
+          window.onGptEngineLoaded();
+        };
+        script.onerror = function() {
+          console.warn("Could not load GPT Engineer script from CDN, using fallback");
+        };
+        document.body.appendChild(script);
+      }
+      
+      // Execute immediately
+      loadExternalScript();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

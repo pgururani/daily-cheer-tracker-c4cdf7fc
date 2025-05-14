@@ -18,13 +18,13 @@
     "https://docs.google.com/*"
   ],
   "background": {
-    "service_worker": "src/background.ts",
+    "service_worker": "background.js",
     "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["https://docs.google.com/forms/*"],
-      "js": ["src/contentScript.ts"]
+      "js": ["contentScript.js"]
     }
   ],
   "icons": {
