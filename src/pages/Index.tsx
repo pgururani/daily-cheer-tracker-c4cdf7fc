@@ -1,116 +1,91 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useTasks } from "@/hooks/useTasks";
-import TaskPrompt from "@/components/TaskPrompt";
-import TaskList from "@/components/TaskList";
-import DailySummary from "@/components/DailySummary";
-import SetupWizard from "@/components/SetupWizard";
-import { Calendar, CheckCircle, ListTodo, Timer, Settings } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/components/ui/use-toast";
 
 const Index = () => {
-  const { 
-    tasks, 
-    dailyHistory, 
-    showPrompt, 
-    showSetupWizard,
-    currentTimeBlock, 
-    userSettings,
-    addTask, 
-    finalizeDayTasks,
-    dismissPrompt,
-    completeSetup,
-    closeSetupWizard,
-    openSetupWizard
-  } = useTasks();
+  const [isExtension, setIsExtension] = useState(false);
+  const [storageAccess, setStorageAccess] = useState(false);
+
+  useEffect(() => {
+    // Check if running as extension
+    const extensionCheck = !!chrome?.runtime?.id;
+    console.log("Running as Chrome extension:", extensionCheck);
+    setIsExtension(extensionCheck);
+    
+    // Check storage access
+    if (extensionCheck && chrome.storage) {
+      chrome.storage.local.get(["initialized"], (result) => {
+        console.log("Storage access successful, initialized:", result.initialized);
+        setStorageAccess(true);
+        
+        // Initialize if needed
+        if (!result.initialized) {
+          chrome.storage.local.set({ initialized: true, installDate: new Date().toISOString() }, () => {
+            console.log("Extension initialized for first use");
+            toast({
+              title: "Extension initialized",
+              description: "Setup complete. Ready to use.",
+            });
+          });
+        }
+      });
+    }
+  }, []);
+
+  const handleTestClick = () => {
+    console.log("Test button clicked");
+    toast({
+      title: "Test successful",
+      description: `Running as extension: ${isExtension}, Storage access: ${storageAccess}`,
+    });
+    
+    // Try to send a message to the background script
+    if (isExtension) {
+      chrome.runtime.sendMessage({ action: "test" }, (response) => {
+        console.log("Background script response:", response);
+        if (response?.success) {
+          toast({
+            title: "Background communication works!",
+            description: response.message || "Message received by background script",
+          });
+        }
+      });
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Setup wizard that shows on first launch */}
-      <SetupWizard 
-        open={showSetupWizard} 
-        onComplete={completeSetup}
-        initialSettings={userSettings}
-        onClose={closeSetupWizard}
-      />
-      
-      {/* Task prompt that shows every 2 hours */}
-      {showPrompt && (
-        <TaskPrompt 
-          timeBlock={currentTimeBlock} 
-          onTaskAdd={addTask} 
-          onDismiss={dismissPrompt}
-        />
-      )}
-      
-      {/* App header */}
-      <header className="bg-gradient-to-r from-cheer-blue to-cheer-purple text-white py-4 px-4 shadow-md">
-        <div className="container max-w-2xl mx-auto">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              <Timer className="animate-pulse" />
-              <span>Daily Cheer Tracker</span>
-            </h1>
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => addTask("I opened the app!")} 
-                variant="secondary" 
-                size="sm"
-                className="text-sm bg-white/20 hover:bg-white/30 border-none"
-              >
-                <CheckCircle size={16} className="mr-2" />
-                Quick Add
-              </Button>
-              {userSettings?.setupComplete && (
-                <Button 
-                  onClick={openSetupWizard} 
-                  variant="secondary" 
-                  size="sm"
-                  className="text-sm bg-white/20 hover:bg-white/30 border-none"
-                >
-                  <Settings size={16} className="mr-1" />
-                </Button>
-              )}
+    <div className="container mx-auto p-4 max-w-md">
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle>Daily Cheer Tracker</CardTitle>
+          <CardDescription>
+            Extension status check
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span>Running as extension:</span>
+              <span className={isExtension ? "text-green-600" : "text-amber-600"}>
+                {isExtension ? "Yes ✓" : "No ✗"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Storage access:</span>
+              <span className={storageAccess ? "text-green-600" : "text-amber-600"}>
+                {storageAccess ? "Available ✓" : "Unavailable ✗"}
+              </span>
             </div>
           </div>
-        </div>
-      </header>
-      
-      {/* Main content */}
-      <main className="container max-w-2xl mx-auto p-4 pt-6">
-        <Tabs defaultValue="today">
-          <TabsList className="grid grid-cols-2 mb-6">
-            <TabsTrigger value="today" className="flex items-center gap-2">
-              <ListTodo size={16} />
-              <span>Today's Tasks</span>
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <Calendar size={16} />
-              <span>History</span>
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="today" className="space-y-6">
-            <TaskList tasks={tasks} />
-            
-            <div className="pt-4 border-t">
-              <Button 
-                onClick={finalizeDayTasks}
-                className="w-full bg-cheer-green hover:bg-cheer-green/90"
-                disabled={tasks.length === 0}
-              >
-                <CheckCircle size={18} className="mr-2" />
-                Complete Today's Tasks
-              </Button>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="history">
-            <DailySummary dailyHistory={dailyHistory} />
-          </TabsContent>
-        </Tabs>
-      </main>
+        </CardContent>
+        <CardFooter>
+          <Button onClick={handleTestClick} className="w-full">
+            Test Extension
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 };
