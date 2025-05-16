@@ -69,7 +69,7 @@ const FormFieldDetector: React.FC = () => {
     }
 
     if (Object.keys(fieldValues).length === 0) {
-      toast.warn("No field values to fill");
+      toast.warning("No field values to fill");
       return;
     }
 
