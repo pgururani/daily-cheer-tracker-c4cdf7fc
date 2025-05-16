@@ -38,9 +38,9 @@ const TaskPrompt: React.FC<TaskPromptProps> = ({ timeBlock, onTaskAdd, onDismiss
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-md animate-in fade-in-0 zoom-in-95 duration-300">
-        <CardHeader className="bg-gradient-to-r from-cheer-blue to-cheer-purple rounded-t-lg">
+        <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-t-lg">
           <CardTitle className="text-white flex items-center gap-2">
-            <SmileIcon className="animate-bounce-slow" />
+            <SmileIcon className="animate-bounce" />
             <span>Time Check! {getTimeBlockLabel(timeBlock)}</span>
           </CardTitle>
         </CardHeader>
@@ -68,7 +68,7 @@ const TaskPrompt: React.FC<TaskPromptProps> = ({ timeBlock, onTaskAdd, onDismiss
             </Button>
             <Button 
               type="submit" 
-              className="w-full bg-cheer-green hover:bg-cheer-green/90"
+              className="w-full bg-green-600 hover:bg-green-700"
               disabled={!task.trim()}
             >
               Add achievement

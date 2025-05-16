@@ -2,11 +2,32 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
+import { useTasks } from "@/hooks/useTasks";
+import TaskList from "@/components/TaskList";
+import TaskPrompt from "@/components/TaskPrompt";
+import DailySummary from "@/components/DailySummary";
+import SetupWizard from "@/components/SetupWizard";
+import { ThumbsUp, Award } from "lucide-react";
 
 const Index = () => {
   const [isExtension, setIsExtension] = useState(false);
   const [storageAccess, setStorageAccess] = useState(false);
+  
+  const { 
+    tasks,
+    dailyHistory,
+    showPrompt,
+    showSetupWizard,
+    loading,
+    addTask,
+    dismissPrompt,
+    finalizeDayTasks,
+    completeSetup,
+    closeSetupWizard,
+    openSetupWizard,
+    currentTimeBlock
+  } = useTasks();
 
   useEffect(() => {
     // Check if running as extension
@@ -24,8 +45,7 @@ const Index = () => {
         if (!result.initialized) {
           chrome.storage.local.set({ initialized: true, installDate: new Date().toISOString() }, () => {
             console.log("Extension initialized for first use");
-            toast({
-              title: "Extension initialized",
+            toast("Extension initialized", {
               description: "Setup complete. Ready to use.",
             });
           });
@@ -34,58 +54,98 @@ const Index = () => {
     }
   }, []);
 
-  const handleTestClick = () => {
-    console.log("Test button clicked");
-    toast({
-      title: "Test successful",
-      description: `Running as extension: ${isExtension}, Storage access: ${storageAccess}`,
-    });
-    
-    // Try to send a message to the background script
-    if (isExtension) {
-      chrome.runtime.sendMessage({ action: "test" }, (response) => {
-        console.log("Background script response:", response);
-        if (response?.success) {
-          toast({
-            title: "Background communication works!",
-            description: response.message || "Message received by background script",
-          });
-        }
-      });
-    }
+  const handleAddTask = (text: string) => {
+    addTask(text);
   };
+
+  const handleFinalizeDayTasks = () => {
+    finalizeDayTasks();
+    toast("Day finalized!", {
+      description: "Your tasks have been saved to history.",
+      icon: <Award className="text-amber-500" />,
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 max-w-md">
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Daily Cheer Tracker</CardTitle>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <ThumbsUp className="text-blue-500" />
+          <span>Daily Cheer Tracker</span>
+        </h1>
+        <Button variant="outline" size="sm" onClick={openSetupWizard}>
+          Setup
+        </Button>
+      </div>
+      
+      {/* Setup Wizard */}
+      {showSetupWizard && (
+        <SetupWizard
+          open={showSetupWizard}
+          onComplete={completeSetup}
+          onClose={closeSetupWizard}
+        />
+      )}
+      
+      {/* Task Input/List */}
+      <Card className="mb-4 shadow-md">
+        <CardHeader className="pb-2">
+          <CardTitle>Today's Achievements</CardTitle>
           <CardDescription>
-            Extension status check
+            Track what you've accomplished today
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span>Running as extension:</span>
-              <span className={isExtension ? "text-green-600" : "text-amber-600"}>
-                {isExtension ? "Yes ✓" : "No ✗"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Storage access:</span>
-              <span className={storageAccess ? "text-green-600" : "text-amber-600"}>
-                {storageAccess ? "Available ✓" : "Unavailable ✗"}
-              </span>
-            </div>
-          </div>
+          <TaskList tasks={tasks} />
         </CardContent>
-        <CardFooter>
-          <Button onClick={handleTestClick} className="w-full">
-            Test Extension
+        <CardFooter className="flex justify-end">
+          <Button 
+            onClick={handleFinalizeDayTasks}
+            disabled={tasks.length === 0}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Finalize Today
           </Button>
         </CardFooter>
       </Card>
+      
+      {/* Daily History */}
+      <DailySummary dailyHistory={dailyHistory} />
+      
+      {/* Task Prompt */}
+      {showPrompt && (
+        <TaskPrompt
+          timeBlock={currentTimeBlock}
+          onTaskAdd={handleAddTask}
+          onDismiss={dismissPrompt}
+        />
+      )}
+      
+      {/* Extension Status */}
+      <div className="mt-8 text-xs text-muted-foreground">
+        <div className="flex items-center justify-between">
+          <span>Extension mode:</span>
+          <span className={isExtension ? "text-green-600" : "text-amber-600"}>
+            {isExtension ? "Active ✓" : "Development ⚠️"}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span>Storage:</span>
+          <span className={storageAccess ? "text-green-600" : "text-amber-600"}>
+            {storageAccess ? "Available ✓" : "Unavailable ⚠️"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

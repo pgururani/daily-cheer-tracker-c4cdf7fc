@@ -48,7 +48,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks }) => {
             <ul className="divide-y divide-border">
               {groupedTasks[timeBlock].map((task) => (
                 <li key={task.id} className="p-3 flex items-start gap-2">
-                  <div className="mt-1 text-cheer-green">
+                  <div className="mt-1 text-green-600">
                     <CheckIcon size={18} />
                   </div>
                   <p>{task.text}</p>

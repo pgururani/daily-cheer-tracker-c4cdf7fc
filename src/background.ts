@@ -30,6 +30,55 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         version: chrome.runtime.getManifest().version,
         success: true 
       });
+    } else if (message.action === "fillForm") {
+      // Handle form filling request
+      console.log("Processing form fill request:", message);
+      
+      const { formConfig, userName, date, client, timeSpent, githubIssue } = message;
+      if (!formConfig || !formConfig.url) {
+        throw new Error("Missing form configuration");
+      }
+      
+      // Format date if needed
+      const formattedDate = date ? new Date(date).toLocaleDateString() : new Date().toLocaleDateString();
+      
+      // Create URL with prefilled data
+      const url = new URL(formConfig.url);
+      
+      // Add form parameters
+      if (formConfig.fields.name && userName) {
+        url.searchParams.append(formConfig.fields.name, userName);
+      }
+      
+      if (formConfig.fields.date) {
+        url.searchParams.append(formConfig.fields.date, formattedDate);
+      }
+      
+      if (formConfig.fields.client && client) {
+        url.searchParams.append(formConfig.fields.client, client);
+      }
+      
+      if (formConfig.fields.time && timeSpent) {
+        url.searchParams.append(formConfig.fields.time, timeSpent);
+      }
+      
+      if (formConfig.fields.githubIssue && githubIssue) {
+        url.searchParams.append(formConfig.fields.githubIssue, githubIssue);
+      }
+      
+      // Open the URL in a new tab
+      chrome.tabs.create({ url: url.toString() }, (tab) => {
+        console.log("Opened form in new tab:", tab.id);
+      });
+      
+      sendResponse({ success: true });
+    } else if (message.action === "test") {
+      // Test message handler
+      console.log("Test message received");
+      sendResponse({ 
+        success: true, 
+        message: "Background script is running correctly!" 
+      });
     } else {
       console.log("Unhandled message action:", message.action);
       sendResponse({ success: false, error: "Unknown action" });
