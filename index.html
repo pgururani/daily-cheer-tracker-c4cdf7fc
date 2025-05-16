@@ -25,6 +25,13 @@
 
   <body>
     <div id="root"></div>
+    <!-- Add an error handler element that shows only if React app fails to load -->
+    <div id="error-fallback" style="display: none; padding: 20px; text-align: center;">
+      <h2 style="color: #e11d48;">Extension Loading Error</h2>
+      <p>There was a problem loading the Daily Cheer Tracker extension.</p>
+      <p id="error-details" style="margin-top: 10px; font-family: monospace; background: #f3f4f6; padding: 10px; border-radius: 4px; text-align: left;"></p>
+    </div>
+    
     <!-- Load gptengineer.js with fallback -->
     <script>
       // Create a fallback function in case the external script isn't loaded
@@ -33,6 +40,14 @@
         window.gptEngineerLoaded = true;
         console.log("GPT Engineer script loaded successfully");
       };
+      
+      // Error handling for the main app
+      window.addEventListener('error', function(e) {
+        console.error('Application error:', e);
+        document.getElementById('error-fallback').style.display = 'block';
+        document.getElementById('error-details').textContent = 
+          'Error: ' + e.message + '\nLine: ' + e.lineno + '\nColumn: ' + e.colno;
+      });
       
       // Try to load the external script with fallback
       function loadExternalScript() {

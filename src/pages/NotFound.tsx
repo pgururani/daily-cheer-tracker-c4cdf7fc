@@ -1,18 +1,26 @@
 
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
 const NotFound = () => {
   const location = useLocation();
+  const isExtension = !!chrome?.runtime?.id;
 
   useEffect(() => {
     console.error(
       "404 Error: User attempted to access non-existent route:",
       location.pathname
     );
-  }, [location.pathname]);
+    console.log("Environment info:", {
+      isExtension,
+      fullUrl: window.location.href,
+      baseUrl: window.location.origin,
+      search: window.location.search,
+      hash: window.location.hash
+    });
+  }, [location.pathname, isExtension]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
@@ -29,13 +37,15 @@ const NotFound = () => {
             </span>
           )}
         </p>
-        <Button
-          onClick={() => window.location.href = "/"}
-          className="inline-flex items-center"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Return to Home
-        </Button>
+        <p className="text-sm text-gray-500 mb-4">
+          Running as extension: {isExtension ? "Yes" : "No"}
+        </p>
+        <Link to="/">
+          <Button className="inline-flex items-center">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Return to Home
+          </Button>
+        </Link>
       </div>
     </div>
   );
