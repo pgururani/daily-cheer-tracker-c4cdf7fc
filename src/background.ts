@@ -10,7 +10,6 @@ chrome.runtime.onInstalled.addListener((details) => {
     console.log("First install - initializing storage with defaults");
     chrome.storage.local.set({
       tasks: [],
-      formURL: "",
       installDate: new Date().toISOString(),
       lastUpdated: new Date().toISOString()
     }, () => {
@@ -30,48 +29,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         version: chrome.runtime.getManifest().version,
         success: true 
       });
-    } else if (message.action === "fillForm") {
-      // Handle form filling request
-      console.log("Processing form fill request:", message);
-      
-      const { formConfig, userName, date, client, timeSpent, githubIssue } = message;
-      if (!formConfig || !formConfig.url) {
-        throw new Error("Missing form configuration");
-      }
-      
-      // Format date if needed
-      const formattedDate = date ? new Date(date).toLocaleDateString() : new Date().toLocaleDateString();
-      
-      // Create URL with prefilled data
-      const url = new URL(formConfig.url);
-      
-      // Add form parameters
-      if (formConfig.fields.name && userName) {
-        url.searchParams.append(formConfig.fields.name, userName);
-      }
-      
-      if (formConfig.fields.date) {
-        url.searchParams.append(formConfig.fields.date, formattedDate);
-      }
-      
-      if (formConfig.fields.client && client) {
-        url.searchParams.append(formConfig.fields.client, client);
-      }
-      
-      if (formConfig.fields.time && timeSpent) {
-        url.searchParams.append(formConfig.fields.time, timeSpent);
-      }
-      
-      if (formConfig.fields.githubIssue && githubIssue) {
-        url.searchParams.append(formConfig.fields.githubIssue, githubIssue);
-      }
-      
-      // Open the URL in a new tab
-      chrome.tabs.create({ url: url.toString() }, (tab) => {
-        console.log("Opened form in new tab:", tab.id);
+    } else if (message.action === "detectFields") {
+      // Forward the message to the active tab's content script
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]?.id) {
+          chrome.tabs.sendMessage(tabs[0].id, { action: 'detectFields' }, (response) => {
+            sendResponse(response);
+          });
+        } else {
+          sendResponse({ success: false, error: "No active tab found" });
+        }
       });
-      
-      sendResponse({ success: true });
+      return true; // Keep the message channel open for async response
+    } else if (message.action === "autofillForm") {
+      // Forward the autofill request to content script
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]?.id) {
+          chrome.tabs.sendMessage(tabs[0].id, { 
+            action: 'autofillForm',
+            data: message.data
+          }, (response) => {
+            sendResponse(response);
+          });
+        } else {
+          sendResponse({ success: false, error: "No active tab found" });
+        }
+      });
+      return true; // Keep the message channel open for async response
     } else if (message.action === "test") {
       // Test message handler
       console.log("Test message received");
@@ -93,12 +77,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   return true; // Keep message channel open for async response
 });
-
-// Send analytics or telemetry (if permitted by user)
-function logTelemetry(eventName: string, data: Record<string, any>) {
-  console.log(`Telemetry: ${eventName}`, data);
-  // Implementation would go here if user opted in to analytics
-}
 
 // Export for testing
 export {};

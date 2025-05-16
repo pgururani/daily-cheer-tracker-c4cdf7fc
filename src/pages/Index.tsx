@@ -8,7 +8,9 @@ import TaskList from "@/components/TaskList";
 import TaskPrompt from "@/components/TaskPrompt";
 import DailySummary from "@/components/DailySummary";
 import SetupWizard from "@/components/SetupWizard";
-import { ThumbsUp, Award } from "lucide-react";
+import FormFieldDetector from "@/components/FormFieldDetector";
+import { ThumbsUp, Award, Settings } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const [isExtension, setIsExtension] = useState(false);
@@ -84,6 +86,7 @@ const Index = () => {
           <span>Daily Cheer Tracker</span>
         </h1>
         <Button variant="outline" size="sm" onClick={openSetupWizard}>
+          <Settings className="h-4 w-4 mr-1" />
           Setup
         </Button>
       </div>
@@ -97,30 +100,46 @@ const Index = () => {
         />
       )}
       
-      {/* Task Input/List */}
-      <Card className="mb-4 shadow-md">
-        <CardHeader className="pb-2">
-          <CardTitle>Today's Achievements</CardTitle>
-          <CardDescription>
-            Track what you've accomplished today
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TaskList tasks={tasks} />
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button 
-            onClick={handleFinalizeDayTasks}
-            disabled={tasks.length === 0}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            Finalize Today
-          </Button>
-        </CardFooter>
-      </Card>
-      
-      {/* Daily History */}
-      <DailySummary dailyHistory={dailyHistory} />
+      {/* Tab navigation */}
+      <Tabs defaultValue="autofill" className="w-full">
+        <TabsList className="grid grid-cols-2 mb-4">
+          <TabsTrigger value="autofill">Form Autofill</TabsTrigger>
+          <TabsTrigger value="tasks">Task Tracking</TabsTrigger>
+        </TabsList>
+        
+        {/* Form Autofill Tab */}
+        <TabsContent value="autofill" className="space-y-4">
+          <FormFieldDetector />
+        </TabsContent>
+        
+        {/* Task Tracking Tab */}
+        <TabsContent value="tasks" className="space-y-4">
+          {/* Task Input/List */}
+          <Card className="mb-4 shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle>Today's Achievements</CardTitle>
+              <CardDescription>
+                Track what you've accomplished today
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TaskList tasks={tasks} />
+            </CardContent>
+            <CardFooter className="flex justify-end">
+              <Button 
+                onClick={handleFinalizeDayTasks}
+                disabled={tasks.length === 0}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Finalize Today
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          {/* Daily History */}
+          <DailySummary dailyHistory={dailyHistory} />
+        </TabsContent>
+      </Tabs>
       
       {/* Task Prompt */}
       {showPrompt && (

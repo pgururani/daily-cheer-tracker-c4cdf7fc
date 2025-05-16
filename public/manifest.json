@@ -3,7 +3,7 @@
   "manifest_version": 3,
   "name": "Daily Cheer Tracker",
   "short_name": "Cheer Tracker",
-  "description": "Track your achievements throughout the day and auto-fill Google Forms",
+  "description": "Track your achievements throughout the day and auto-fill forms",
   "version": "1.0.0",
   "action": {
     "default_popup": "index.html",
@@ -16,10 +16,11 @@
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
-    "https://docs.google.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js",
@@ -27,8 +28,9 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://docs.google.com/forms/*"],
-      "js": ["contentScript.js"]
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"],
+      "run_at": "document_end"
     }
   ],
   "icons": {
