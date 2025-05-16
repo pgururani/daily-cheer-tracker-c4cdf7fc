@@ -1,36 +1,14 @@
 
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { useTasks } from "@/hooks/useTasks";
-import TaskList from "@/components/TaskList";
-import TaskPrompt from "@/components/TaskPrompt";
-import DailySummary from "@/components/DailySummary";
-import SetupWizard from "@/components/SetupWizard";
 import FormFieldDetector from "@/components/FormFieldDetector";
-import { ThumbsUp, Award, Settings } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ThumbsUp, Settings } from "lucide-react";
 
 const Index = () => {
   const [isExtension, setIsExtension] = useState(false);
   const [storageAccess, setStorageAccess] = useState(false);
   
-  const { 
-    tasks,
-    dailyHistory,
-    showPrompt,
-    showSetupWizard,
-    loading,
-    addTask,
-    dismissPrompt,
-    finalizeDayTasks,
-    completeSetup,
-    closeSetupWizard,
-    openSetupWizard,
-    currentTimeBlock
-  } = useTasks();
-
   useEffect(() => {
     // Check if running as extension
     const extensionCheck = !!chrome?.runtime?.id;
@@ -56,99 +34,19 @@ const Index = () => {
     }
   }, []);
 
-  const handleAddTask = (text: string) => {
-    addTask(text);
-  };
-
-  const handleFinalizeDayTasks = () => {
-    finalizeDayTasks();
-    toast("Day finalized!", {
-      description: "Your tasks have been saved to history.",
-      icon: <Award className="text-amber-500" />,
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto p-4 max-w-md">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <ThumbsUp className="text-blue-500" />
-          <span>Daily Cheer Tracker</span>
+          <span>Form Field Autofill</span>
         </h1>
-        <Button variant="outline" size="sm" onClick={openSetupWizard}>
-          <Settings className="h-4 w-4 mr-1" />
-          Setup
-        </Button>
       </div>
       
-      {/* Setup Wizard */}
-      {showSetupWizard && (
-        <SetupWizard
-          open={showSetupWizard}
-          onComplete={completeSetup}
-          onClose={closeSetupWizard}
-        />
-      )}
-      
-      {/* Tab navigation */}
-      <Tabs defaultValue="autofill" className="w-full">
-        <TabsList className="grid grid-cols-2 mb-4">
-          <TabsTrigger value="autofill">Form Autofill</TabsTrigger>
-          <TabsTrigger value="tasks">Task Tracking</TabsTrigger>
-        </TabsList>
-        
-        {/* Form Autofill Tab */}
-        <TabsContent value="autofill" className="space-y-4">
-          <FormFieldDetector />
-        </TabsContent>
-        
-        {/* Task Tracking Tab */}
-        <TabsContent value="tasks" className="space-y-4">
-          {/* Task Input/List */}
-          <Card className="mb-4 shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle>Today's Achievements</CardTitle>
-              <CardDescription>
-                Track what you've accomplished today
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TaskList tasks={tasks} />
-            </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button 
-                onClick={handleFinalizeDayTasks}
-                disabled={tasks.length === 0}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Finalize Today
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          {/* Daily History */}
-          <DailySummary dailyHistory={dailyHistory} />
-        </TabsContent>
-      </Tabs>
-      
-      {/* Task Prompt */}
-      {showPrompt && (
-        <TaskPrompt
-          timeBlock={currentTimeBlock}
-          onTaskAdd={handleAddTask}
-          onDismiss={dismissPrompt}
-        />
-      )}
+      {/* Main Content */}
+      <div className="space-y-4">
+        <FormFieldDetector />
+      </div>
       
       {/* Extension Status */}
       <div className="mt-8 text-xs text-muted-foreground">

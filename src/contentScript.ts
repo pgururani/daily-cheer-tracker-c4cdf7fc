@@ -17,6 +17,12 @@ const detectFormFields = () => {
       ? (inputElement as HTMLInputElement).type 
       : inputElement.tagName.toLowerCase();
     
+    // Skip hidden fields
+    if (type === 'hidden') {
+      console.log('Skipping hidden field:', name || id);
+      return;
+    }
+    
     // Use name or id as the identifier, fall back to index if neither exists
     const fieldId = name || id || `field_${index}`;
     
