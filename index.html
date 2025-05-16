@@ -1,71 +1,17 @@
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Daily Cheer Tracker</title>
-    <meta name="description" content="Track your achievements throughout the day" />
-    <meta name="author" content="Lovable" />
-
-    <meta property="og:title" content="Daily Cheer Tracker" />
-    <meta property="og:description" content="Track your achievements throughout the day" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#3B82F6" />
-    <!-- Add CSP Meta Tag compatible with Chrome extension -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://cdn.gpteng.co 'unsafe-inline' 'unsafe-eval'; object-src 'self'">
+    <!-- Add Content-Security-Policy for extension context -->
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://cdn.gpteng.co 'unsafe-inline' 'unsafe-eval';">
   </head>
-
   <body>
     <div id="root"></div>
-    <!-- Add an error handler element that shows only if React app fails to load -->
-    <div id="error-fallback" style="display: none; padding: 20px; text-align: center;">
-      <h2 style="color: #e11d48;">Extension Loading Error</h2>
-      <p>There was a problem loading the Daily Cheer Tracker extension.</p>
-      <p id="error-details" style="margin-top: 10px; font-family: monospace; background: #f3f4f6; padding: 10px; border-radius: 4px; text-align: left;"></p>
-    </div>
-    
-    <!-- Load gptengineer.js with fallback -->
-    <script>
-      // Create a fallback function in case the external script isn't loaded
-      window.gptEngineerLoaded = false;
-      window.onGptEngineLoaded = function() {
-        window.gptEngineerLoaded = true;
-        console.log("GPT Engineer script loaded successfully");
-      };
-      
-      // Error handling for the main app
-      window.addEventListener('error', function(e) {
-        console.error('Application error:', e);
-        document.getElementById('error-fallback').style.display = 'block';
-        document.getElementById('error-details').textContent = 
-          'Error: ' + e.message + '\nLine: ' + e.lineno + '\nColumn: ' + e.colno;
-      });
-      
-      // Try to load the external script with fallback
-      function loadExternalScript() {
-        var script = document.createElement('script');
-        script.src = "https://cdn.gpteng.co/gptengineer.js";
-        script.type = "module";
-        script.onload = function() {
-          window.onGptEngineLoaded();
-        };
-        script.onerror = function() {
-          console.warn("Could not load GPT Engineer script from CDN, using fallback");
-        };
-        document.body.appendChild(script);
-      }
-      
-      // Execute immediately
-      loadExternalScript();
-    </script>
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
