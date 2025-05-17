@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { Task, TaskState, UserSettings, GoogleFormConfig, StaticFieldValues } from '../types/task';
+import { Task, TaskState, UserSettings } from '../types/task';
 import { 
   loadFromChromeStorage, 
   saveToChromeStorage, 
@@ -212,76 +211,6 @@ export const useTasks = () => {
     setShowSetupWizard(true);
   };
 
-  // Fill a Google Form with data
-  const fillForm = async (date: string, client: string, timeSpent: string, githubIssue: string) => {
-    if (!userSettings?.formConfig?.url) {
-      toast.error("Missing form configuration");
-      return false;
-    }
-
-    try {
-      // If in extension environment, send message to background script
-      if (isChromeExtension()) {
-        // Send message to background script to handle form filling
-        chrome.runtime.sendMessage({
-          action: 'fillForm',
-          date,
-          formConfig: userSettings.formConfig,
-          userName,
-          client,
-          timeSpent,
-          githubIssue
-        }, response => {
-          if (response && response.success) {
-            toast.success("Form opened in new tab");
-          } else {
-            toast.error(`Failed to fill form: ${response?.error || 'Unknown error'}`);
-          }
-        });
-      } else {
-        // In browser environment, use direct form filling
-        const taskState = await loadFromChromeStorage();
-        const selectedDay = taskState.dailyHistory.find(day => day.date === date);
-        
-        if (!selectedDay) {
-          toast.error("No tasks found for the selected date");
-          return false;
-        }
-        
-        // Format tasks
-        const tasksDescription = getTasksSummary(selectedDay.tasks);
-        
-        // Import formUtils functions
-        const { createFormPrefillUrl } = await import('../utils/formUtils');
-        
-        // Create the form URL with prefilled data
-        const formUrl = createFormPrefillUrl(
-          userSettings.formConfig,
-          tasksDescription,
-          userName,
-          client,
-          timeSpent,
-          githubIssue
-        );
-        
-        if (!formUrl) {
-          toast.error("Failed to create form URL");
-          return false;
-        }
-        
-        // Open the URL in a new tab
-        window.open(formUrl, '_blank');
-        toast.success("Form opened in new tab");
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Error filling form:', error);
-      toast.error("Failed to communicate with extension");
-      return false;
-    }
-  };
-
   return {
     tasks: taskState.tasks,
     dailyHistory: taskState.dailyHistory,
@@ -299,7 +228,6 @@ export const useTasks = () => {
     completeSetup,
     closeSetupWizard,
     openSetupWizard,
-    getTasksSummary,
-    fillForm
+    getTasksSummary
   };
 };
