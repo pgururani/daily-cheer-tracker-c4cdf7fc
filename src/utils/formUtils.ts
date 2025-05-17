@@ -1,4 +1,3 @@
-
 // Default form fields structure (simplified for autofill)
 export const DEFAULT_FORM_FIELDS = {
   name: '',
@@ -11,7 +10,10 @@ export const DEFAULT_FORM_FIELDS = {
 
 // Simple URL validator (simplified function)
 export const isValidGoogleFormUrl = (url: string): boolean => {
-  return url.startsWith('http');
+  return url.startsWith('http') && (
+    url.includes('docs.google.com/forms') || 
+    url.includes('forms.gle/')
+  );
 };
 
 // Format tasks as a summary string
@@ -26,12 +28,23 @@ export const formatTasksAsSummary = (tasks: any[]): string => {
   }).join('\n');
 };
 
-// Simplified stub function for form field detection
+// Enhanced form field detection for Google Forms
 export const detectFormFields = async (url: string): Promise<any> => {
-  console.log('Form field detection is simplified - now using direct field detection');
+  console.log('Form field detection started for URL:', url);
+  
+  if (isValidGoogleFormUrl(url)) {
+    console.log('Google Form URL detected - will use specialized detection');
+    return {
+      url: url,
+      fields: DEFAULT_FORM_FIELDS,
+      isGoogleForm: true
+    };
+  }
+  
   return {
     url: url,
-    fields: DEFAULT_FORM_FIELDS
+    fields: DEFAULT_FORM_FIELDS,
+    isGoogleForm: false
   };
 };
 
@@ -104,4 +117,57 @@ export const autofillFormFields = async (fieldsData: Record<string, string>): Pr
       reject(error);
     }
   });
+};
+
+// Map generic form fields to Google Form fields
+export const mapFieldsToGoogleForm = (fieldsData: Record<string, string>): Record<string, string> => {
+  // This function maps generic field names to more specific Google Form field identifiers
+  // The content script will handle the actual matching logic
+  
+  const mappedFields: Record<string, string> = {};
+  
+  // Map common field names to potential Google Form question patterns
+  for (const [key, value] of Object.entries(fieldsData)) {
+    switch (key.toLowerCase()) {
+      case 'name':
+        mappedFields['name'] = value;
+        mappedFields['full_name'] = value;
+        mappedFields['your_name'] = value;
+        break;
+      case 'date':
+        mappedFields['date'] = value;
+        mappedFields['day'] = value;
+        mappedFields['work_date'] = value;
+        break;
+      case 'client':
+        mappedFields['client'] = value;
+        mappedFields['client_name'] = value;
+        mappedFields['company'] = value;
+        break;
+      case 'time':
+        mappedFields['time'] = value;
+        mappedFields['time_spent'] = value;
+        mappedFields['hours'] = value;
+        mappedFields['duration'] = value;
+        break;
+      case 'description':
+        mappedFields['description'] = value;
+        mappedFields['work_description'] = value;
+        mappedFields['tasks'] = value;
+        mappedFields['details'] = value;
+        break;
+      case 'githubissue':
+      case 'githubIssue':
+        mappedFields['github'] = value;
+        mappedFields['issue'] = value;
+        mappedFields['ticket'] = value;
+        mappedFields['github_issue'] = value;
+        break;
+      default:
+        // Keep original key
+        mappedFields[key] = value;
+    }
+  }
+  
+  return mappedFields;
 };

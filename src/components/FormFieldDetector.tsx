@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
+import { mapFieldsToGoogleForm } from "@/utils/formUtils";
 
 // Function to check if we're running in a Chrome extension environment
 const isChromeExtension = (): boolean => {
@@ -18,6 +19,7 @@ const FormFieldDetector: React.FC = () => {
   const [detectedFields, setDetectedFields] = useState<Record<string, any>>({});
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [currentUrl, setCurrentUrl] = useState<string>('');
+  const [isGoogleForm, setIsGoogleForm] = useState(false);
 
   // Detect form fields in the current tab
   const detectFields = async () => {
@@ -40,6 +42,13 @@ const FormFieldDetector: React.FC = () => {
         if (response && response.success) {
           setDetectedFields(response.fields || {});
           setCurrentUrl(response.url || '');
+          
+          // Check if this is a Google Form
+          const isGForm = response.url && (
+            response.url.includes('docs.google.com/forms') || 
+            response.url.includes('forms.gle/')
+          );
+          setIsGoogleForm(isGForm);
           
           // Initialize field values with empty strings
           const initialValues: Record<string, string> = {};
@@ -79,11 +88,16 @@ const FormFieldDetector: React.FC = () => {
       const valuesToFill = Object.fromEntries(
         Object.entries(fieldValues).filter(([_, value]) => value.trim() !== '')
       );
+      
+      // For Google Forms, use mapping to increase chances of correct field identification
+      const dataToSend = isGoogleForm ? 
+        mapFieldsToGoogleForm(valuesToFill) : 
+        valuesToFill;
 
       // Send message to background script to autofill form
       chrome.runtime.sendMessage({ 
         action: "autofillForm", 
-        data: valuesToFill 
+        data: dataToSend 
       }, (response) => {
         if (chrome.runtime.lastError) {
           console.error("Error sending message:", chrome.runtime.lastError);
@@ -126,7 +140,12 @@ const FormFieldDetector: React.FC = () => {
       <CardHeader>
         <CardTitle>Form Field Autofill</CardTitle>
         <CardDescription>
-          {currentUrl ? `For ${currentUrl}` : "Detect and fill fields in the current page"}
+          {currentUrl ? (
+            <>
+              For {currentUrl.substring(0, 50)}{currentUrl.length > 50 ? '...' : ''}
+              {isGoogleForm && <span className="text-green-600 ml-2">(Google Form)</span>}
+            </>
+          ) : "Detect and fill fields in the current page"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -173,6 +192,7 @@ const FormFieldDetector: React.FC = () => {
           className="bg-green-600 hover:bg-green-700"
         >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {!loading && <ArrowRight className="mr-2 h-4 w-4" />}
           Autofill Form
         </Button>
       </CardFooter>
