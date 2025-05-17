@@ -10,7 +10,7 @@ import {
   loadUserSettings,
   isSetupComplete
 } from '../utils/chromeStorage';
-import { DEFAULT_FORM_FIELDS, formatTasksAsSummary } from '../utils/formUtils';
+import { formatTasksAsSummary, autofillFormFields } from '../utils/formUtils';
 import { toast } from 'sonner';
 
 // Helper function to check if we're running in a Chrome extension environment
@@ -29,7 +29,7 @@ export const useTasks = () => {
   const [userSettings, setUserSettings] = useState<UserSettings>({
     formConfig: {
       url: '',
-      fields: DEFAULT_FORM_FIELDS
+      fields: {} 
     }
   });
 
@@ -211,6 +211,56 @@ export const useTasks = () => {
     setShowSetupWizard(true);
   };
 
+  // Add the missing fillForm function
+  const fillForm = async (
+    date: string,
+    client: string,
+    timeSpent: string,
+    githubIssue: string
+  ): Promise<boolean> => {
+    try {
+      // Find the daily tasks for the selected date
+      const dailyTasks = taskState.dailyHistory.find(day => day.date === date);
+      
+      if (!dailyTasks) {
+        toast.error("No tasks found for the selected date");
+        return false;
+      }
+      
+      // Create summary text from tasks
+      const tasksDescription = getTasksSummary(dailyTasks.tasks);
+      
+      // Prepare form data to fill
+      const formData = {
+        name: userName || '',
+        date: new Date(date).toLocaleDateString(),
+        client: client,
+        time: timeSpent,
+        description: tasksDescription,
+        githubIssue: githubIssue
+      };
+      
+      // Use the autofillFormFields function to actually fill the form
+      const result = await autofillFormFields(formData);
+      
+      if (result) {
+        toast.success("Form fields autofilled successfully", {
+          description: "Check the form to verify the data"
+        });
+        return true;
+      } else {
+        toast.error("Failed to autofill form");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error filling form:", error);
+      toast.error("Failed to fill form", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
+      return false;
+    }
+  };
+
   return {
     tasks: taskState.tasks,
     dailyHistory: taskState.dailyHistory,
@@ -228,6 +278,7 @@ export const useTasks = () => {
     completeSetup,
     closeSetupWizard,
     openSetupWizard,
-    getTasksSummary
+    getTasksSummary,
+    fillForm  // Add the fillForm function to the return object
   };
 };
