@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Task, TaskState, UserSettings } from '../types/task';
 import { 
@@ -10,7 +11,7 @@ import {
   loadUserSettings,
   isSetupComplete
 } from '../utils/chromeStorage';
-import { formatTasksAsSummary, autofillFormFields } from '../utils/formUtils';
+import { formatTasksAsSummary, autofillFormFields, DEFAULT_FORM_FIELDS } from '../utils/formUtils';
 import { toast } from 'sonner';
 
 // Helper function to check if we're running in a Chrome extension environment
@@ -29,7 +30,7 @@ export const useTasks = () => {
   const [userSettings, setUserSettings] = useState<UserSettings>({
     formConfig: {
       url: '',
-      fields: {} 
+      fields: DEFAULT_FORM_FIELDS 
     }
   });
 

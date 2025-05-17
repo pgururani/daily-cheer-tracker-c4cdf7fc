@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { isValidGoogleFormUrl } from "@/utils/formUtils";
+import { isValidGoogleFormUrl } from "@/utils/formUtils"; // This import is preserved for backward compatibility
 
 interface FormIframeProps {
   open: boolean;

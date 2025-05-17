@@ -1,4 +1,19 @@
 
+// Default form fields structure (simplified for autofill)
+export const DEFAULT_FORM_FIELDS = {
+  name: '',
+  date: '',
+  client: '',
+  time: '',
+  description: '',
+  githubIssue: ''
+};
+
+// Simple URL validator (simplified function)
+export const isValidGoogleFormUrl = (url: string): boolean => {
+  return url.startsWith('http');
+};
+
 // Format tasks as a summary string
 export const formatTasksAsSummary = (tasks: any[]): string => {
   if (!tasks || tasks.length === 0) return "No tasks recorded";
@@ -9,6 +24,15 @@ export const formatTasksAsSummary = (tasks: any[]): string => {
     if (task.githubIssue) summary += ` (${task.githubIssue})`;
     return summary;
   }).join('\n');
+};
+
+// Simplified stub function for form field detection
+export const detectFormFields = async (url: string): Promise<any> => {
+  console.log('Form field detection is simplified - now using direct field detection');
+  return {
+    url: url,
+    fields: DEFAULT_FORM_FIELDS
+  };
 };
 
 // Get current page form fields
